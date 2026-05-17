@@ -82,7 +82,7 @@ typed client와 Hub는 모두 pagination iterator를 제공한다. `Page.has_nex
 - `Wgs84Coordinate`: 기존 호환용 `PlaceCoordinate` alias
 - `ServiceKey`, `ContentId`, `DateInput`, `CoordinateInput`, `AreaCodeInput` 등 타입 alias
 
-위치 검색은 `kraddr.base.PlaceCoordinate(lon=..., lat=...)`를 직접 사용한다. TourAPI 원문 이름은 `mapX=lon`, `mapY=lat`로만 변환한다. 튜플 좌표는 `(longitude, latitude)` 또는 `(lon, lat)` 순서로 해석한다.
+위치 검색은 `kraddr.base.PlaceCoordinate(lat=..., lon=...)`를 직접 사용한다. TourAPI 원문 이름은 `mapX=lon`, `mapY=lat`로만 변환한다. 튜플 좌표는 `(latitude, longitude)` 또는 `(lat, lon)` 순서로 해석한다.
 
 ### 국문 contentTypeId
 

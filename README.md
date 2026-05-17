@@ -12,7 +12,7 @@
 - `KorService2` typed wrapper: 지역/위치/키워드/행사/숙박/상세/이미지/동기화/코드 조회
 - `TourApiHubClient`: 공식 활용신청 목록 27개 서비스 전체 operation generic 호출
 - Pydantic v2 기반 frozen 응답 모델: `model_dump()`, `model_dump_json()`, `model_json_schema()` 지원
-- `kraddr.base.PlaceCoordinate`로 위경도 표준화: `lon`/`lat`를 TourAPI `mapX`/`mapY`로 변환
+- `kraddr.base.PlaceCoordinate`로 위경도 표준화: `lat`/`lon` public DTO를 TourAPI `mapY`/`mapX`로 변환
 - `items.item`이 빈 값, 단일 object, list로 오는 차이를 내부에서 정규화
 - HTTP status, TourAPI `resultCode`, XML 인증 오류를 typed exception으로 매핑
 - 예외 metadata로 관리자 로그와 사용자 메시지 분리 지원
@@ -118,7 +118,7 @@ camping = hub.gocamping.based_list(facltNm="숲")
 photos = hub.photo_gallery.gallery_search_list(galSearchKeyword="서울")
 
 nearby_pet = hub.pet.location_based_list(
-    coordinate=PlaceCoordinate(lon=126.9769, lat=37.5796),
+    coordinate=PlaceCoordinate(lat=37.5796, lon=126.9769),
     radius=1000,
 )
 
@@ -203,19 +203,19 @@ info_text = clean_tourapi_html(repeat.info_text)
 
 ## 좌표 규칙
 
-TourAPI 원문은 `mapX=경도`, `mapY=위도`를 사용합니다. `visitkorea`의 public API는 `kraddr.base.PlaceCoordinate`를 직접 사용하며, 축 순서는 `(lon, lat)`입니다.
+TourAPI 원문은 `mapX=경도`, `mapY=위도`를 사용합니다. `visitkorea`의 public API는 `kraddr.base.PlaceCoordinate`를 직접 사용하며, 공개 DTO 축 순서는 `(lat, lon)`입니다.
 
 ```python
 from visitkorea import PlaceCoordinate
 
-coord = PlaceCoordinate(lon=126.9769, lat=37.5796)
+coord = PlaceCoordinate(lat=37.5796, lon=126.9769)
 
 client.location_based_list(coordinate=coord, radius=1000)
-client.location_based_list(coordinate=(126.9769, 37.5796), radius=1000)
+client.location_based_list(coordinate=(37.5796, 126.9769), radius=1000)
 client.location_based_list(map_x=126.9769, map_y=37.5796, radius=1000)  # 기존 호환
 ```
 
-튜플 좌표는 `(longitude, latitude)` 또는 `(lon, lat)` 순서입니다. 다른 지도 라이브러리의 `(lat, lon)` 순서와 섞지 않도록 주의하세요. 기존 `Wgs84Coordinate` 이름은 `PlaceCoordinate`와 같은 클래스 alias로 남겨 둡니다.
+튜플 좌표는 `(latitude, longitude)` 또는 `(lat, lon)` 순서입니다. GeoJSON이나 TourAPI 원문 `(lon, lat)` 순서와 섞지 않도록 주의하세요. 기존 `Wgs84Coordinate` 이름은 `PlaceCoordinate`와 같은 클래스 alias로 남겨 둡니다.
 
 ## Enum과 타입
 

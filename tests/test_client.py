@@ -105,7 +105,7 @@ def test_search_keyword_sends_filters_and_parses_item(fake_client_factory):
     assert item.addr2 is None
     assert item.map_x == 126.9769
     assert item.map_y == 37.5796
-    assert item.coordinate == PlaceCoordinate(lon=126.9769, lat=37.5796)
+    assert item.coordinate == PlaceCoordinate(lat=37.5796, lon=126.9769)
     assert item.distance_m == 125.4
     assert item.created_time is not None
     assert item.created_time.year == 2024
@@ -160,7 +160,7 @@ def test_location_radius_validation(fake_client_factory):
         client.location_based_list(radius=100)
     with pytest.raises(ValueError, match="cannot be combined"):
         client.location_based_list(
-            coordinate=PlaceCoordinate(lon=126.9, lat=37.5),
+            coordinate=PlaceCoordinate(lat=37.5, lon=126.9),
             map_x=126.9,
             radius=100,
         )
@@ -175,10 +175,10 @@ def test_location_accepts_standard_coordinate_inputs(fake_client_factory):
     )
 
     client.location_based_list(
-        coordinate=PlaceCoordinate(lon=126.9769, lat=37.5796),
+        coordinate=PlaceCoordinate(lat=37.5796, lon=126.9769),
         radius=1000,
     )
-    client.location_based_list(coordinate=(127.0, 37.5), radius=1000)
+    client.location_based_list(coordinate=(37.5, 127.0), radius=1000)
     client.location_based_list(coordinate={"longitude": 127.1, "latitude": 37.6}, radius=1000)
     client.location_based_list(coordinate={"mapX": 127.2, "mapY": 37.7}, radius=1000)
 
@@ -246,7 +246,7 @@ def test_detail_common_parses_detail(fake_client_factory):
     assert detail.content_id == "126508"
     assert detail.homepage is not None
     assert detail.overview == "설명"
-    assert detail.coordinate == PlaceCoordinate(lon=126.9769, lat=37.5796)
+    assert detail.coordinate == PlaceCoordinate(lat=37.5796, lon=126.9769)
     assert detail.copyright_division_code == "Type1"
     assert detail.context.service_name == "KorService2"
     assert detail.context.endpoint == "detailCommon2"
@@ -392,10 +392,12 @@ def test_raw_endpoint_preserves_raw_records(fake_client_factory):
     assert "serviceKey" not in page.context.request_params
 
 
-def test_env_and_language_errors(monkeypatch, fake_client_factory):
+def test_env_and_language_errors(monkeypatch, tmp_path, fake_client_factory):
     monkeypatch.delenv("KTO_SERVICE_KEY", raising=False)
+    monkeypatch.delenv("KTO_DATA_GO_KR_SERVICE_KEY", raising=False)
     monkeypatch.delenv("KRTOURAPI_SERVICE_KEY", raising=False)
     monkeypatch.delenv("TOURAPI_SERVICE_KEY", raising=False)
+    monkeypatch.chdir(tmp_path)
 
     with pytest.raises(TourApiAuthError):
         KrTourApiClient()

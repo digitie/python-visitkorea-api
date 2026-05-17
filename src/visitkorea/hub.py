@@ -9,7 +9,7 @@ from typing import Any, cast
 from kraddr.base import PlaceCoordinate
 
 from ._auth import DEFAULT_SERVICE_KEY_SOURCE, resolve_service_key
-from ._convert import enum_value, strip_or_none, to_int_or_none, without_none
+from ._convert import enum_value, strip_or_none, to_int_or_none, to_yyyymmdd, without_none, yn
 from ._http import SessionLike, TourApiHttp
 from ._pagination import iter_paginated_pages
 from ._provenance import call_context
@@ -517,22 +517,62 @@ def _without_page_params(params: Mapping[str, Any] | None) -> dict[str, Any]:
     return cleaned
 
 
+PYTHONIC_PARAM_ALIASES: dict[str, str] = {
+    "area_cd": "areaCd",
+    "area_code": "areaCode",
+    "base_ym": "baseYm",
+    "base_ymd": "baseYmd",
+    "content_id": "contentId",
+    "content_type_id": "contentTypeId",
+    "course_idx": "courseIdx",
+    "event_end_date": "eventEndDate",
+    "event_start_date": "eventStartDate",
+    "facility_name": "facltNm",
+    "gallery_content_id": "galContentId",
+    "gallery_search_keyword": "galSearchKeyword",
+    "gallery_title": "galTitle",
+    "image_yn": "imageYN",
+    "l_dong_list_yn": "lDongListYn",
+    "l_dong_regn_cd": "lDongRegnCd",
+    "l_dong_signgu_cd": "lDongSignguCd",
+    "lcls_systm1": "lclsSystm1",
+    "lcls_systm2": "lclsSystm2",
+    "lcls_systm3": "lclsSystm3",
+    "lcls_systm_list_yn": "lclsSystmListYn",
+    "map_x": "mapX",
+    "map_y": "mapY",
+    "mobile_app": "MobileApp",
+    "mobile_os": "MobileOS",
+    "modified_time": "modifiedtime",
+    "num_of_rows": "numOfRows",
+    "page_no": "pageNo",
+    "route_idx": "routeIdx",
+    "show_flag": "showFlag",
+    "sigungu_code": "sigunguCode",
+    "sigungu_name": "sigunguNm",
+    "signgu_cd": "signguCd",
+    "sub_image_yn": "subImageYN",
+}
+DATE_PARAM_ALIASES: dict[str, str] = {
+    "base_ymd": "baseYmd",
+    "event_end_date": "eventEndDate",
+    "event_start_date": "eventStartDate",
+    "modified_time": "modifiedtime",
+}
+YN_PARAM_ALIASES: dict[str, str] = {
+    "image_yn": "imageYN",
+    "l_dong_list_yn": "lDongListYn",
+    "lcls_systm_list_yn": "lclsSystmListYn",
+    "sub_image_yn": "subImageYN",
+}
+
+
 def _pythonic_params(params: Mapping[str, Any]) -> dict[str, Any]:
     converted: dict[str, Any] = {}
     for key, value in params.items():
-        if key == "page_no":
-            converted["pageNo"] = value
-        elif key == "num_of_rows":
-            converted["numOfRows"] = value
-        elif key == "content_id":
-            converted["contentId"] = value
-        elif key == "content_type_id":
-            converted["contentTypeId"] = value
-        elif key == "mobile_os":
-            converted["MobileOS"] = value
-        elif key == "mobile_app":
-            converted["MobileApp"] = value
-        elif key == "coordinate":
+        if key == "coordinate":
+            if value is None:
+                continue
             if isinstance(value, PlaceCoordinate):
                 coordinate = value
             elif isinstance(value, tuple):
@@ -546,11 +586,17 @@ def _pythonic_params(params: Mapping[str, Any]) -> dict[str, Any]:
                 coordinate = mapped_coordinate
             else:
                 raise TypeError(
-                    "coordinate must be PlaceCoordinate, (longitude, latitude), or mapping"
+                    "coordinate must be PlaceCoordinate, (latitude, longitude), or mapping"
                 )
             converted.update({"mapX": coordinate.lon, "mapY": coordinate.lat})
+        elif key in DATE_PARAM_ALIASES:
+            converted[DATE_PARAM_ALIASES[key]] = to_yyyymmdd(value, field=key)
+        elif key in YN_PARAM_ALIASES:
+            converted[YN_PARAM_ALIASES[key]] = yn(value)
+        elif key in PYTHONIC_PARAM_ALIASES:
+            converted[PYTHONIC_PARAM_ALIASES[key]] = enum_value(value)
         else:
-            converted[key] = value
+            converted[key] = enum_value(value)
     return converted
 
 

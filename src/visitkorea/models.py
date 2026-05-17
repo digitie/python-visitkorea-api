@@ -112,7 +112,7 @@ class TourItem(TourApiModel):
 
         if self.map_x is None or self.map_y is None:
             return None
-        return PlaceCoordinate(lon=self.map_x, lat=self.map_y)
+        return PlaceCoordinate(lat=self.map_y, lon=self.map_x)
 
 
 class RelatedTourItem(TourApiModel):
@@ -183,7 +183,7 @@ class TourDetail(TourApiModel):
 
         if self.map_x is None or self.map_y is None:
             return None
-        return PlaceCoordinate(lon=self.map_x, lat=self.map_y)
+        return PlaceCoordinate(lat=self.map_y, lon=self.map_x)
 
 
 class CodeItem(TourApiModel):

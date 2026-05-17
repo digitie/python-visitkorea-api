@@ -70,7 +70,7 @@ Hub 응답의 `page.context`에는 `service_name`, `endpoint`, `request_params`,
 - 일부 메뉴얼의 예제 URL에는 오탈자가 있습니다. 예: Odii 메뉴얼에는 `themeBaseSyncdList`가 보이나 operation 표와 실제 패턴 기준으로 `themeBasedSyncList`를 사용합니다.
 - Hub 클라이언트의 반환값은 Pydantic `Page[Mapping[str, Any]]`입니다. 서비스별 item 필드가 매우 다르므로 generic path에서는 typed item 모델을 만들지 않고 원문 record를 보존합니다.
 - Hub `Page.context.request_params`에는 인증키 원문을 남기지 않습니다.
-- `page_no`, `num_of_rows`, `content_id`, `content_type_id`, `coordinate` 같은 Python식 alias는 Hub에서도 지원합니다. 특히 `coordinate`는 `PlaceCoordinate`, `(longitude, latitude)` tuple, `{"longitude": ..., "latitude": ...}` 또는 `{"mapX": ..., "mapY": ...}` mapping을 `mapX`/`mapY`로 변환합니다.
+- `page_no`, `num_of_rows`, `content_id`, `content_type_id`, `coordinate` 같은 Python식 alias는 Hub에서도 지원합니다. 특히 `coordinate`는 `PlaceCoordinate`, `(latitude, longitude)` tuple, `{"longitude": ..., "latitude": ...}` 또는 `{"mapX": ..., "mapY": ...}` mapping을 `mapX`/`mapY`로 변환합니다.
 - `related_tour`는 예외적으로 typed helper를 제공합니다. `area_based_list()`와 `search_keyword()`는 `Page[RelatedTourItem]`을 반환하고, generic `call()`은 기존처럼 raw mapping을 반환합니다. `area_cd`/`signgu_cd`는 TarRlteTarService1의 TourAPI 지역 코드이지 법정동코드가 아닙니다.
 - `related_tour.iter_area_based_list()`와 `related_tour.iter_search_keyword()`는 typed `Page[RelatedTourItem]`을 페이지 단위로 반복합니다.
 - 국문 `KorService2`의 자주 쓰는 endpoint는 `KrTourApiClient`에 typed method가 있습니다. 전체 서비스 범위가 필요하면 Hub, 더 강한 모델과 enum이 필요하면 typed client를 선택합니다.

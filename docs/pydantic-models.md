@@ -110,7 +110,7 @@ updated = item.model_copy(update={"title": "새 제목"})
 ```python
 from visitkorea import PlaceCoordinate, Wgs84Coordinate
 
-coord = PlaceCoordinate(lon=126.9769, lat=37.5796)
+coord = PlaceCoordinate(lat=37.5796, lon=126.9769)
 
 assert Wgs84Coordinate is PlaceCoordinate
 assert coord.map_x == coord.lon

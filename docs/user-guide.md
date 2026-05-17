@@ -142,7 +142,7 @@ TourAPI 원문 이름은 `mapX=경도`, `mapY=위도`입니다. 외부 프로그
 ```python
 from visitkorea import PlaceCoordinate
 
-coord = PlaceCoordinate(lon=126.9769, lat=37.5796)
+coord = PlaceCoordinate(lat=37.5796, lon=126.9769)
 
 page = client.location_based_list(
     coordinate=coord,
@@ -154,14 +154,14 @@ page = client.location_based_list(
 허용되는 입력:
 
 ```python
-client.location_based_list(coordinate=PlaceCoordinate(lon=126.9769, lat=37.5796), radius=1000)
-client.location_based_list(coordinate=(126.9769, 37.5796), radius=1000)
+client.location_based_list(coordinate=PlaceCoordinate(lat=37.5796, lon=126.9769), radius=1000)
+client.location_based_list(coordinate=(37.5796, 126.9769), radius=1000)
 client.location_based_list(coordinate={"longitude": 126.9769, "latitude": 37.5796}, radius=1000)
 client.location_based_list(coordinate={"mapX": 126.9769, "mapY": 37.5796}, radius=1000)
 client.location_based_list(map_x=126.9769, map_y=37.5796, radius=1000)
 ```
 
-튜플은 항상 `(longitude, latitude)` 또는 `(lon, lat)` 순서입니다. `folium`, 일부 geocoder, 웹 지도 SDK처럼 `(latitude, longitude)` 순서를 쓰는 도구와 섞을 때는 `coord.latlon`과 `coord.lonlat`을 명시적으로 선택하세요.
+튜플은 항상 `(latitude, longitude)` 또는 `(lat, lon)` 순서입니다. GeoJSON, TourAPI 원문, 일부 GIS SDK처럼 `(longitude, latitude)` 순서를 쓰는 도구와 섞을 때는 `coord.latlon`과 `coord.lonlat`을 명시적으로 선택하세요.
 
 ## Pydantic 응답 모델
 

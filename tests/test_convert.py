@@ -38,14 +38,14 @@ def test_date_and_yn_conversions():
 
 
 def test_place_coordinate_is_public_coordinate_type():
-    coordinate = PlaceCoordinate(lon=126.9769, lat=37.5796)
+    coordinate = PlaceCoordinate(lat=37.5796, lon=126.9769)
 
     assert Wgs84Coordinate is PlaceCoordinate
     assert coordinate.map_x == 126.9769
     assert coordinate.map_y == 37.5796
     assert coordinate.lonlat == (126.9769, 37.5796)
     assert coordinate.latlon == (37.5796, 126.9769)
-    assert PlaceCoordinate.from_tuple((126.9, 37.5)).longitude == 126.9
+    assert PlaceCoordinate.from_tuple((37.5, 126.9)).longitude == 126.9
     assert PlaceCoordinate.from_mapping({"lon": 126.9, "lat": 37.5}).latitude == 37.5
     assert PlaceCoordinate.from_mapping({"mapX": "126.9", "mapY": "37.5"}).lonlat == (
         126.9,
@@ -57,9 +57,9 @@ def test_place_coordinate_is_public_coordinate_type():
     assert PlaceCoordinate.model_json_schema()["properties"]["lon"]
 
     with pytest.raises(ValidationError, match="lon"):
-        PlaceCoordinate(lon=181, lat=37.5)
+        PlaceCoordinate(lat=37.5, lon=181)
     with pytest.raises(ValidationError, match="lat"):
-        PlaceCoordinate(lon=126.9, lat=91)
+        PlaceCoordinate(lat=91, lon=126.9)
     assert PlaceCoordinate.from_mapping({"not_x": 126.9, "not_y": 37.5}) is None
 
 

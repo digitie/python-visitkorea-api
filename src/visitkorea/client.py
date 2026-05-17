@@ -679,10 +679,10 @@ def _resolve_coordinate(
                     "coordinate mapping requires longitude/latitude, lon/lat, or mapX/mapY"
                 )
             return coordinate_value
-        raise TypeError("coordinate must be PlaceCoordinate, (longitude, latitude), or mapping")
+        raise TypeError("coordinate must be PlaceCoordinate, (latitude, longitude), or mapping")
     if map_x is None or map_y is None:
         raise ValueError("location_based_list requires coordinate or both map_x and map_y")
-    return PlaceCoordinate(lon=map_x, lat=map_y)
+    return PlaceCoordinate(lat=map_y, lon=map_x)
 
 
 def _extract_items(

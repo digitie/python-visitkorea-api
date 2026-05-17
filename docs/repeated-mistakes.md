@@ -148,7 +148,7 @@
 
 **증상:** 위치 기반 검색 결과가 엉뚱한 지역으로 나오거나 반경 검색이 비어 있다.
 
-**규칙:** public API에서는 `kraddr.base.PlaceCoordinate(lon=..., lat=...)`를 직접 사용한다. `Wgs84Coordinate`는 같은 클래스 alias로만 둔다. 튜플 좌표는 `(longitude, latitude)` 또는 `(lon, lat)` 순서로만 해석하고, TourAPI 요청 직전에만 `mapX=lon`, `mapY=lat`로 변환한다.
+**규칙:** public API에서는 `kraddr.base.PlaceCoordinate(lat=..., lon=...)`를 직접 사용한다. `Wgs84Coordinate`는 같은 클래스 alias로만 둔다. 튜플 좌표는 `(latitude, longitude)` 또는 `(lat, lon)` 순서로만 해석하고, TourAPI 요청 직전에만 `mapX=lon`, `mapY=lat`로 변환한다.
 
 **가드레일:** `test_place_coordinate_is_public_coordinate_type`, `test_location_accepts_standard_coordinate_inputs`.
 
