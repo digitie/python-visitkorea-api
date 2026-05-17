@@ -277,7 +277,7 @@ def test_hub_coordinate_alias_expands_to_tourapi_params():
     hub = TourApiHubClient("KEY", session=session)
 
     hub.kor.location_based_list(
-        coordinate=PlaceCoordinate(lon=126.9769, lat=37.5796),
+        coordinate=PlaceCoordinate(lat=37.5796, lon=126.9769),
         radius=1000,
     )
     hub.kor.location_based_list(coordinate={"mapX": 127.0, "mapY": 37.5}, radius=500)
