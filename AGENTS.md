@@ -2,6 +2,14 @@
 
 This repository is a small typed Python package. Keep changes narrow, tested, and documented.
 
+## Direct public API rule
+
+- Before starting external API work, apply this rule first: do not create provider-specific wrapper, adapter, or gateway layers.
+- Provide stable public clients, typed models, enums, and helpers that downstream users can call directly.
+- If TripMate or `python-krtour-map` needs missing endpoints, pagination, cursors, exceptions, or raw payload contracts, stabilize them in this package instead of adding a temporary facade downstream.
+- Do not keep long-lived compatibility aliases or pass-through wrappers when calling code can be updated to the stable public API.
+- When reusing a proven implementation from another library, check license/source and integrate the implementation into this package instead of wrapping it.
+
 ## Before editing public behavior
 
 1. Read `README.md`.

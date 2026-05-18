@@ -44,6 +44,13 @@ from .models import (
     TourItem,
     Wgs84Coordinate,
 )
+from .operation_schema import (
+    OperationParameter,
+    OperationSchema,
+    ParameterOption,
+    get_operation_parameters,
+    get_operation_schema,
+)
 from .services import (
     SERVICE_BY_KEY,
     SERVICE_DEFINITIONS,
@@ -93,6 +100,9 @@ __all__ = [
     "MobileOS",
     "MobileOSInput",
     "Page",
+    "OperationParameter",
+    "OperationSchema",
+    "ParameterOption",
     "PlaceCoordinate",
     "RelatedTourItem",
     "RelatedTourServiceClient",
@@ -124,6 +134,8 @@ __all__ = [
     "content_type_label",
     "copyright_display_info",
     "get_api_catalog",
+    "get_operation_parameters",
+    "get_operation_schema",
     "get_service_catalog",
     "normalize_service_key",
     "resolve_service_key",

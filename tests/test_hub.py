@@ -1,15 +1,21 @@
 from __future__ import annotations
 
+from datetime import date
+
 import pytest
 from kraddr.base import PlaceCoordinate
 from pydantic import ValidationError
 
 from visitkorea import (
     SERVICE_DEFINITIONS,
+    AreaCode,
+    Arrange,
+    ContentType,
     RelatedTourItem,
     RelatedTourServiceClient,
     TourApiHubClient,
     get_api_catalog,
+    get_operation_schema,
     get_service_catalog,
     service_key_env_names,
 )
@@ -265,6 +271,69 @@ def test_hub_pythonic_param_aliases():
     assert session.calls[0]["url"].endswith("/KorService2/detailCommon2")
     assert params["contentId"] == "1"
     assert params["contentTypeId"] == "12"
+
+
+def test_hub_pythonic_enums_dates_and_bools():
+    session = FakeSession(
+        [
+            FakeResponse(tour_payload({"contentid": "1"})),
+            FakeResponse(tour_payload({"contentid": "1"})),
+        ]
+    )
+    hub = TourApiHubClient("KEY", session=session)
+
+    hub.kor.search_festival(
+        event_start_date=date(2026, 5, 1),
+        event_end_date="20260531",
+        area_code=AreaCode.SEOUL,
+        arrange=Arrange.TITLE_WITH_IMAGE,
+    )
+    hub.kor.detail_image(content_id="1", image_yn=True, sub_image_yn=False)
+
+    festival_params = session.calls[0]["params"]
+    assert festival_params["eventStartDate"] == "20260501"
+    assert festival_params["eventEndDate"] == "20260531"
+    assert festival_params["areaCode"] == "1"
+    assert festival_params["arrange"] == "O"
+
+    image_params = session.calls[1]["params"]
+    assert image_params["contentId"] == "1"
+    assert image_params["imageYN"] == "Y"
+    assert image_params["subImageYN"] == "N"
+
+
+def test_operation_schema_explains_operations_and_enum_parameters():
+    schema = get_operation_schema("kor", "search_keyword")
+
+    assert schema.operation == "searchKeyword2"
+    assert schema.pythonic_name == "search_keyword"
+    assert "Keyword search" in schema.summary
+    parameter_names = {param.name for param in schema.parameters}
+    assert {"keyword", "content_type_id", "area_code", "arrange"}.issubset(parameter_names)
+
+    content_type = next(param for param in schema.parameters if param.name == "content_type_id")
+    assert content_type.kind == "enum"
+    assert any(
+        option.value == ContentType.TOURIST_ATTRACTION.value for option in content_type.options
+    )
+
+    arrange = next(param for param in schema.parameters if param.name == "arrange")
+    assert arrange.default == Arrange.MODIFIED_WITH_IMAGE.value
+    assert any(option.value == Arrange.TITLE.value for option in arrange.options)
+
+
+def test_operation_schema_location_and_related_tour_required_parameters():
+    location = get_operation_schema("kor", "locationBasedList2")
+    related = get_operation_schema("related_tour", "searchKeyword1")
+
+    location_required = {param.name for param in location.parameters if param.required}
+    assert location_required == {"coordinate", "radius"}
+    coordinate = next(param for param in location.parameters if param.name == "coordinate")
+    assert "mapX/mapY" in coordinate.api_name
+
+    related_required = {param.name for param in related.parameters if param.required}
+    assert {"keyword", "base_ym", "area_cd", "signgu_cd"}.issubset(related_required)
+    assert "not legal-dong" in related.details
 
 
 def test_hub_coordinate_alias_expands_to_tourapi_params():
