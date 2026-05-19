@@ -40,7 +40,7 @@ TourAPI는 `_type=json` 요청에도 인증키/권한 오류를 XML로 돌려줄
 가능한 원인:
 
 - 해당 서비스 활용신청이 되어 있지 않다. 예를 들어 국문만 신청한 키로 `EngService2`를 호출하면 403이 날 수 있다.
-- TourAPI 게이트웨이가 기본 `python-requests` User-Agent를 차단한다.
+- TourAPI 게이트웨이가 기본 Python HTTP 클라이언트 User-Agent를 차단한다.
 - 인증키가 잘못되었거나 승인 전이다.
 
 해결:

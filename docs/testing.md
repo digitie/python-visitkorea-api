@@ -3,7 +3,7 @@
 ## 기본 원칙
 
 - 기본 테스트는 실제 TourAPI를 호출하지 않는다.
-- HTTP는 fake session 또는 `responses`로 고정한다.
+- HTTP는 fake session, fake async session, 또는 `httpx.MockTransport`로 고정한다.
 - 응답 fixture 값은 실제 TourAPI처럼 문자열 중심으로 둔다.
 - live test는 별도 marker로 격리한다.
 
@@ -30,6 +30,7 @@ mypy src/visitkorea
 - CLI JSON 직렬화
 - 전체 OpenAPI 카탈로그 개수와 서비스 alias
 - `TourApiHubClient`의 service/operation 동적 라우팅과 snake_case operation alias
+- `AsyncKrTourApiClient`와 `AsyncTourApiHubClient`의 awaitable method와 async iterator
 - Hub 요청의 Pythonic parameter alias(`content_id` -> `contentId` 등)
 - public enum/type export
 - `PlaceCoordinate` 좌표 검증과 `lon`/`lat` -> `mapX`/`mapY` 변환

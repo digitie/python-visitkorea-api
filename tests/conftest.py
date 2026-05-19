@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from visitkorea.client import KrTourApiClient
+from visitkorea.client import AsyncKrTourApiClient, KrTourApiClient
 
 
 class FakeResponse:
@@ -39,6 +39,22 @@ class FakeSession:
         if not self.responses:
             raise AssertionError("no fake response left")
         return self.responses.pop(0)
+
+
+class FakeAsyncSession:
+    def __init__(self, responses: list[FakeResponse]) -> None:
+        self.responses = responses
+        self.calls: list[dict[str, Any]] = []
+        self.closed = False
+
+    async def get(self, url: str, *, params: Mapping[str, Any], timeout: float) -> FakeResponse:
+        self.calls.append({"url": url, "params": dict(params), "timeout": timeout})
+        if not self.responses:
+            raise AssertionError("no fake response left")
+        return self.responses.pop(0)
+
+    async def aclose(self) -> None:
+        self.closed = True
 
 
 def tour_payload(
@@ -76,6 +92,19 @@ def fake_client_factory() -> Any:
     def factory(*responses: FakeResponse, **kwargs: Any) -> tuple[KrTourApiClient, FakeSession]:
         session = FakeSession(list(responses))
         client = KrTourApiClient("TEST_KEY", session=session, **kwargs)
+        return client, session
+
+    return factory
+
+
+@pytest.fixture
+def fake_async_client_factory() -> Any:
+    def factory(
+        *responses: FakeResponse,
+        **kwargs: Any,
+    ) -> tuple[AsyncKrTourApiClient, FakeAsyncSession]:
+        session = FakeAsyncSession(list(responses))
+        client = AsyncKrTourApiClient("TEST_KEY", session=session, **kwargs)
         return client, session
 
     return factory

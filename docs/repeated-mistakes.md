@@ -4,13 +4,25 @@
 
 ## 서비스키 인코딩
 
-**실수:** URL-encoded 인증키를 `requests`의 `params=`에 넣어 다시 인코딩한다.
+**실수:** URL-encoded 인증키를 HTTP 클라이언트의 `params=`에 넣어 다시 인코딩한다.
 
 **증상:** 정상 키인데도 `SERVICE_KEY_IS_NOT_REGISTERED_ERROR`가 나온다.
 
 **규칙:** 라이브러리 사용 예시는 Decoding 키를 기준으로 한다. 직접 URL 문자열을 만들 때만 Encoding 키를 고려한다.
 
 **가드레일:** HTTP 테스트가 `serviceKey`를 query param으로 그대로 넘기는지 확인한다.
+
+## asyncio 앱에서 별도 비동기 wrapper 만들기
+
+**실수:** TripMate나 `python-krtour-map` 같은 소비자 앱에서 동기 `visitkorea` client를 `asyncio.to_thread()`나 자체 adapter로 감싼다.
+
+**증상:** HTTP 세션 수명, 예외 매핑, pagination, provenance redaction 규칙이 앱마다 갈라지고, 같은 비동기 버그를 여러 저장소에서 고쳐야 한다.
+
+**원인:** 라이브러리 public API에 `httpx.AsyncClient` 기반 client가 없는데도, 부족한 endpoint/helper를 downstream facade로 우회한다.
+
+**규칙:** 동기 client와 같은 메서드 이름을 제공하는 `AsyncKrTourApiClient`와 `AsyncTourApiHubClient`를 직접 사용한다. 응답 모델, 예외 hierarchy, `Page` pagination 규칙은 동기/비동기에서 같아야 하며, 새 async 동작은 이 패키지의 public API로 안정화한다.
+
+**가드레일:** `test_async_typed_client_sends_request_and_parses_page`, `test_async_typed_client_iter_pages`, `test_async_hub_generic_and_related_tour_helpers`.
 
 ## 서비스키 복사/붙여넣기 공백을 그대로 보내기
 

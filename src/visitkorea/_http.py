@@ -3,12 +3,10 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, Protocol, cast
+from typing import Any, NoReturn, Protocol, cast
 from xml.etree import ElementTree
 
-import requests
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
+import httpx
 
 from ._auth import normalize_service_key
 from ._convert import without_none
@@ -32,6 +30,10 @@ class SessionLike(Protocol):
     def get(self, url: str, *, params: Mapping[str, Any], timeout: float) -> ResponseLike: ...
 
 
+class AsyncSessionLike(Protocol):
+    async def get(self, url: str, *, params: Mapping[str, Any], timeout: float) -> ResponseLike: ...
+
+
 TRANSIENT_STATUSES = {429, 500, 502, 503, 504}
 DEFAULT_USER_AGENT = (
     "Mozilla/5.0 (compatible; visitkorea/0.1; "
@@ -39,27 +41,26 @@ DEFAULT_USER_AGENT = (
 )
 
 
-def build_session(retries: int = 3) -> SessionLike:
-    """Build a requests session with conservative GET retries."""
+def build_session(retries: int = 3) -> httpx.Client:
+    """Build an httpx sync client with conservative connection retries."""
 
-    session = requests.Session()
-    session.headers.update({"User-Agent": DEFAULT_USER_AGENT})
-    if retries <= 0:
-        return cast(SessionLike, session)
-
-    retry = Retry(
-        total=retries,
-        connect=retries,
-        read=retries,
-        status=retries,
-        backoff_factor=0.3,
-        status_forcelist=tuple(sorted(TRANSIENT_STATUSES)),
-        allowed_methods=frozenset({"GET"}),
+    transport = httpx.HTTPTransport(retries=max(0, retries))
+    return httpx.Client(
+        headers={"User-Agent": DEFAULT_USER_AGENT},
+        follow_redirects=True,
+        transport=transport,
     )
-    adapter = HTTPAdapter(max_retries=retry)
-    session.mount("http://", adapter)
-    session.mount("https://", adapter)
-    return cast(SessionLike, session)
+
+
+def build_async_session(retries: int = 3) -> httpx.AsyncClient:
+    """Build an httpx async client with conservative connection retries."""
+
+    transport = httpx.AsyncHTTPTransport(retries=max(0, retries))
+    return httpx.AsyncClient(
+        headers={"User-Agent": DEFAULT_USER_AGENT},
+        follow_redirects=True,
+        transport=transport,
+    )
 
 
 class TourApiHttp:
@@ -85,7 +86,8 @@ class TourApiHttp:
         self.service_name = service_name.strip("/")
         self.mobile_os = mobile_os
         self.mobile_app = mobile_app
-        self.session = session or build_session(retries)
+        self.session = cast(SessionLike, session or build_session(retries))
+        self._owns_session = session is None
         self.timeout = timeout
 
     def get(self, endpoint: str, params: Mapping[str, Any] | None = None) -> Mapping[str, Any]:
@@ -98,30 +100,99 @@ class TourApiHttp:
             params=params,
         )
 
-        response = self.session.get(url, params=without_none(request_params), timeout=self.timeout)
-        _raise_for_status(
+        try:
+            response = self.session.get(
+                url,
+                params=without_none(request_params),
+                timeout=self.timeout,
+            )
+        except httpx.HTTPError as exc:
+            _raise_for_transport_error(
+                exc,
+                endpoint=endpoint_path,
+                service_name=self.service_name,
+                service_key=self.service_key,
+            )
+        return _decode_response(
             response,
             endpoint=endpoint_path,
             service_name=self.service_name,
             service_key=self.service_key,
         )
+
+    def close(self) -> None:
+        """Close an owned httpx sync client."""
+
+        if self._owns_session and hasattr(self.session, "close"):
+            self.session.close()
+
+
+class AsyncTourApiHttp:
+    """Low-level async JSON client for the data.go.kr TourAPI envelope."""
+
+    def __init__(
+        self,
+        service_key: str,
+        *,
+        base_url: str,
+        service_name: str,
+        mobile_os: str,
+        mobile_app: str,
+        session: AsyncSessionLike | None = None,
+        timeout: float = 10.0,
+        retries: int = 3,
+    ) -> None:
+        normalized_key = normalize_service_key(service_key)
+        if not normalized_key:
+            raise TourApiAuthError("service_key is required", failure_kind="auth")
+        self.service_key = normalized_key
+        self.base_url = base_url.rstrip("/")
+        self.service_name = service_name.strip("/")
+        self.mobile_os = mobile_os
+        self.mobile_app = mobile_app
+        self.session = cast(AsyncSessionLike, session or build_async_session(retries))
+        self._owns_session = session is None
+        self.timeout = timeout
+
+    async def get(
+        self,
+        endpoint: str,
+        params: Mapping[str, Any] | None = None,
+    ) -> Mapping[str, Any]:
+        endpoint_path = endpoint.strip("/")
+        url = f"{self.base_url}/{self.service_name}/{endpoint_path}"
+        request_params = tourapi_request_params(
+            service_key=self.service_key,
+            mobile_os=self.mobile_os,
+            mobile_app=self.mobile_app,
+            params=params,
+        )
+
         try:
-            payload = response.json()
-        except ValueError as exc:
-            _raise_for_xml_error(
-                response.text,
+            response = await self.session.get(
+                url,
+                params=without_none(request_params),
+                timeout=self.timeout,
+            )
+        except httpx.HTTPError as exc:
+            _raise_for_transport_error(
+                exc,
                 endpoint=endpoint_path,
                 service_name=self.service_name,
                 service_key=self.service_key,
             )
-            message = _redact_secret(str(exc), self.service_key)
-            raise TourApiParseError(
-                f"TourAPI response was not valid JSON: {message}",
-                endpoint=endpoint_path,
-                service_name=self.service_name,
-                failure_kind="parse",
-            ) from exc
-        return _extract_body(payload, endpoint=endpoint_path, service_name=self.service_name)
+        return _decode_response(
+            response,
+            endpoint=endpoint_path,
+            service_name=self.service_name,
+            service_key=self.service_key,
+        )
+
+    async def aclose(self) -> None:
+        """Close an owned httpx async client."""
+
+        if self._owns_session and hasattr(self.session, "aclose"):
+            await self.session.aclose()
 
 
 def tourapi_request_params(
@@ -170,6 +241,54 @@ def public_request_params(
 
 def _is_service_key_param(key: object) -> bool:
     return str(key).replace("_", "").lower() == "servicekey"
+
+
+def _decode_response(
+    response: ResponseLike,
+    *,
+    endpoint: str,
+    service_name: str,
+    service_key: str,
+) -> Mapping[str, Any]:
+    _raise_for_status(
+        response,
+        endpoint=endpoint,
+        service_name=service_name,
+        service_key=service_key,
+    )
+    try:
+        payload = response.json()
+    except ValueError as exc:
+        _raise_for_xml_error(
+            response.text,
+            endpoint=endpoint,
+            service_name=service_name,
+            service_key=service_key,
+        )
+        message = _redact_secret(str(exc), service_key)
+        raise TourApiParseError(
+            f"TourAPI response was not valid JSON: {message}",
+            endpoint=endpoint,
+            service_name=service_name,
+            failure_kind="parse",
+        ) from exc
+    return _extract_body(payload, endpoint=endpoint, service_name=service_name)
+
+
+def _raise_for_transport_error(
+    exc: httpx.HTTPError,
+    *,
+    endpoint: str,
+    service_name: str,
+    service_key: str,
+) -> NoReturn:
+    message = _redact_secret(str(exc), service_key)
+    raise TourApiServerError(
+        f"TourAPI HTTP request failed: {message}",
+        endpoint=endpoint,
+        service_name=service_name,
+        failure_kind="server",
+    ) from exc
 
 
 def _raise_for_status(

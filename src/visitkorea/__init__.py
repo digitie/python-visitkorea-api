@@ -10,7 +10,7 @@ from ._auth import (
     service_key_source,
     service_key_sources,
 )
-from .client import KrTourApiClient, TourApiClient
+from .client import AsyncKrTourApiClient, AsyncTourApiClient, KrTourApiClient, TourApiClient
 from .display import CopyrightDisplayInfo, clean_tourapi_html, copyright_display_info
 from .enums import (
     AreaCode,
@@ -30,7 +30,14 @@ from .exceptions import (
     TourApiRequestError,
     TourApiServerError,
 )
-from .hub import RelatedTourServiceClient, TourApiHubClient, TourApiServiceClient
+from .hub import (
+    AsyncRelatedTourServiceClient,
+    AsyncTourApiHubClient,
+    AsyncTourApiServiceClient,
+    RelatedTourServiceClient,
+    TourApiHubClient,
+    TourApiServiceClient,
+)
 from .models import (
     CodeItem,
     ImageInfo,
@@ -80,6 +87,11 @@ __all__ = [
     "AreaCode",
     "AreaCodeInput",
     "AreaCodeValue",
+    "AsyncKrTourApiClient",
+    "AsyncRelatedTourServiceClient",
+    "AsyncTourApiClient",
+    "AsyncTourApiHubClient",
+    "AsyncTourApiServiceClient",
     "Arrange",
     "ArrangeInput",
     "CategoryCodeValue",

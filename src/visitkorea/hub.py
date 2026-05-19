@@ -3,15 +3,22 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Callable, Iterable, Iterator, Mapping
+from collections.abc import AsyncIterator, Callable, Iterable, Iterator, Mapping
 from typing import Any, cast
 
 from kraddr.base import PlaceCoordinate
 
 from ._auth import DEFAULT_SERVICE_KEY_SOURCE, resolve_service_key
 from ._convert import enum_value, strip_or_none, to_int_or_none, to_yyyymmdd, without_none, yn
-from ._http import SessionLike, TourApiHttp
-from ._pagination import iter_paginated_pages
+from ._http import (
+    AsyncSessionLike,
+    AsyncTourApiHttp,
+    SessionLike,
+    TourApiHttp,
+    build_async_session,
+    build_session,
+)
+from ._pagination import async_iter_paginated_pages, iter_paginated_pages
 from ._provenance import call_context
 from .client import DEFAULT_BASE_URL, DEFAULT_ENV_NAMES, _extract_items
 from .enums import MobileOS
@@ -50,7 +57,8 @@ class TourApiHubClient:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.retries = retries
-        self.session = session
+        self.session = cast(SessionLike, session or build_session(retries))
+        self._owns_session = session is None
 
     @classmethod
     def from_env(
@@ -79,6 +87,28 @@ class TourApiHubClient:
             names = ", ".join((name, *fallback_names))
             raise TourApiAuthError(f"none of these environment variables are set: {names}")
         return cls(service_key=service_key, **kwargs)
+
+    @classmethod
+    def aio(
+        cls,
+        service_key: str | None = None,
+        **kwargs: Any,
+    ) -> AsyncTourApiHubClient:
+        """Create an asyncio-native catalog client."""
+
+        return AsyncTourApiHubClient(service_key=service_key, **kwargs)
+
+    def __enter__(self) -> TourApiHubClient:
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        self.close()
+
+    def close(self) -> None:
+        """Close the owned shared httpx client when this instance created it."""
+
+        if self._owns_session and hasattr(self.session, "close"):
+            self.session.close()
 
     @property
     def services(self) -> tuple[ServiceDefinition, ...]:
@@ -456,6 +486,464 @@ class RelatedTourServiceClient(TourApiServiceClient):
     ) -> Page[RelatedTourItem]:
         request_params = _page_params(params=params, page_no=page_no, num_of_rows=num_of_rows)
         body = self._http.get(endpoint, params=without_none(request_params))
+        rows = _extract_items(body, endpoint, service_name=self.definition.service_name)
+        parsed = tuple(_related_tour_item(row) for row in rows)
+        return Page(
+            items=parsed,
+            total_count=to_int_or_none(body.get("totalCount")) or len(parsed),
+            page_no=to_int_or_none(body.get("pageNo")) or page_no or 1,
+            num_of_rows=to_int_or_none(body.get("numOfRows")) or num_of_rows or len(parsed),
+            raw=body,
+            context=call_context(
+                service_name=self.definition.service_name,
+                endpoint=endpoint,
+                mobile_os=self._http.mobile_os,
+                mobile_app=self._http.mobile_app,
+                params=request_params,
+            ),
+        )
+
+
+class AsyncTourApiHubClient:
+    """Asyncio-native catalog-aware client for every TourAPI Hub service."""
+
+    def __init__(
+        self,
+        service_key: str | None = None,
+        *,
+        mobile_os: MobileOS | str = MobileOS.ETC,
+        mobile_app: str = "visitkorea",
+        base_url: str = DEFAULT_BASE_URL,
+        timeout: float = 10.0,
+        retries: int = 3,
+        session: AsyncSessionLike | None = None,
+        service_key_source: str = DEFAULT_SERVICE_KEY_SOURCE,
+    ) -> None:
+        key = resolve_service_key(
+            service_key,
+            source=service_key_source,
+            env_names=DEFAULT_ENV_NAMES,
+        )
+        if not key:
+            raise TourApiAuthError(
+                "service_key is required. Pass service_key=... or set KTO_DATA_GO_KR_SERVICE_KEY."
+            )
+        self.service_key = key
+        self.mobile_os = str(enum_value(mobile_os))
+        self.mobile_app = mobile_app
+        self.base_url = base_url.rstrip("/")
+        self.timeout = timeout
+        self.retries = retries
+        self.session = cast(AsyncSessionLike, session or build_async_session(retries))
+        self._owns_session = session is None
+
+    @classmethod
+    def from_env(
+        cls,
+        name: str = "KTO_DATA_GO_KR_SERVICE_KEY",
+        *,
+        fallback_names: tuple[str, ...] = (
+            "DATA_GO_KR_SERVICE_KEY",
+            "DATA_GOKR_SERVICE_KEY",
+            "KTO_SERVICE_KEY",
+            "KRTOURAPI_SERVICE_KEY",
+            "TOURAPI_SERVICE_KEY",
+        ),
+        service_key_source: str = DEFAULT_SERVICE_KEY_SOURCE,
+        env_file_paths: Iterable[str] | None = None,
+        **kwargs: Any,
+    ) -> AsyncTourApiHubClient:
+        """Create an async catalog-aware client from environment variables."""
+
+        service_key = resolve_service_key(
+            source=service_key_source,
+            env_names=(name, *fallback_names),
+            env_file_paths=env_file_paths,
+        )
+        if not service_key:
+            names = ", ".join((name, *fallback_names))
+            raise TourApiAuthError(f"none of these environment variables are set: {names}")
+        return cls(service_key=service_key, **kwargs)
+
+    async def __aenter__(self) -> AsyncTourApiHubClient:
+        return self
+
+    async def __aexit__(self, *args: object) -> None:
+        await self.aclose()
+
+    async def aclose(self) -> None:
+        """Close the owned shared httpx async client when this instance created it."""
+
+        if self._owns_session and hasattr(self.session, "aclose"):
+            await self.session.aclose()
+
+    @property
+    def services(self) -> tuple[ServiceDefinition, ...]:
+        """Return the official service catalog bundled with the package."""
+
+        return SERVICE_DEFINITIONS
+
+    def catalog(self) -> tuple[dict[str, Any], ...]:
+        """Return UI-friendly service and operation catalog rows."""
+
+        return get_api_catalog()
+
+    def service(self, key: str) -> AsyncTourApiServiceClient:
+        """Return an async service-specific generic client by key, service name, or alias."""
+
+        try:
+            definition = SERVICE_BY_KEY[key.lower()]
+        except KeyError as exc:
+            known = ", ".join(service.key for service in SERVICE_DEFINITIONS)
+            raise TourApiRequestError(f"unknown TourAPI service {key!r}; known: {known}") from exc
+        client_class = (
+            AsyncRelatedTourServiceClient
+            if definition.key == "related_tour"
+            else AsyncTourApiServiceClient
+        )
+        return client_class(
+            definition,
+            service_key=self.service_key,
+            mobile_os=self.mobile_os,
+            mobile_app=self.mobile_app,
+            base_url=self.base_url,
+            timeout=self.timeout,
+            retries=self.retries,
+            session=self.session,
+        )
+
+    @property
+    def related_tour(self) -> AsyncRelatedTourServiceClient:
+        """Async typed client for TarRlteTarService1 related-tour operations."""
+
+        return cast(AsyncRelatedTourServiceClient, self.service("related_tour"))
+
+    async def call(
+        self,
+        service: str,
+        operation: str,
+        params: Mapping[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> Page[RawRecord]:
+        """Call one operation from any registered service asynchronously."""
+
+        return await self.service(service).call(operation, params=params, **kwargs)
+
+    async def iter_pages(
+        self,
+        service: str,
+        operation: str,
+        params: Mapping[str, Any] | None = None,
+        *,
+        page_no: int = 1,
+        num_of_rows: int = 10,
+        max_pages: int | None = None,
+        max_items: int | None = None,
+        **kwargs: Any,
+    ) -> AsyncIterator[Page[RawRecord]]:
+        """Asynchronously iterate generic Hub pages for one service operation."""
+
+        base_params = _without_page_params(params)
+
+        async def get_page(next_page_no: int, page_size: int) -> Page[RawRecord]:
+            return await self.call(
+                service,
+                operation,
+                params=base_params,
+                page_no=next_page_no,
+                num_of_rows=page_size,
+                **kwargs,
+            )
+
+        async for page in async_iter_paginated_pages(
+            get_page,
+            page_no=page_no,
+            num_of_rows=num_of_rows,
+            max_pages=max_pages,
+            max_items=max_items,
+        ):
+            yield page
+
+    def __getattr__(self, name: str) -> AsyncTourApiServiceClient:
+        if name.startswith("_"):
+            raise AttributeError(name)
+        try:
+            return self.service(name)
+        except TourApiRequestError as exc:
+            raise AttributeError(name) from exc
+
+
+class AsyncTourApiServiceClient:
+    """Async generic operation caller for one TourAPI service."""
+
+    def __init__(
+        self,
+        definition: ServiceDefinition,
+        *,
+        service_key: str,
+        mobile_os: str,
+        mobile_app: str,
+        base_url: str,
+        timeout: float,
+        retries: int,
+        session: AsyncSessionLike | None,
+    ) -> None:
+        self.definition = definition
+        self._operation_by_alias = _operation_aliases(definition.operations)
+        self._http = AsyncTourApiHttp(
+            service_key,
+            base_url=base_url,
+            service_name=definition.service_name,
+            mobile_os=mobile_os,
+            mobile_app=mobile_app,
+            session=session,
+            timeout=timeout,
+            retries=retries,
+        )
+
+    @property
+    def operations(self) -> tuple[str, ...]:
+        """Operations supported by this service according to the downloaded manual."""
+
+        return self.definition.operations
+
+    async def call(
+        self,
+        operation: str,
+        params: Mapping[str, Any] | None = None,
+        *,
+        page_no: int | None = 1,
+        num_of_rows: int | None = 10,
+        **kwargs: Any,
+    ) -> Page[RawRecord]:
+        """Call an operation and return normalized raw item records asynchronously."""
+
+        endpoint = self._resolve_operation(operation)
+        request_params = _page_params(params={}, page_no=page_no, num_of_rows=num_of_rows)
+        if params:
+            request_params.update(dict(params))
+        request_params.update(_pythonic_params(kwargs))
+        body = await self._http.get(endpoint, params=without_none(request_params))
+        rows = _extract_items(body, endpoint, service_name=self.definition.service_name)
+        return Page(
+            items=rows,
+            total_count=to_int_or_none(body.get("totalCount")) or len(rows),
+            page_no=to_int_or_none(body.get("pageNo")) or page_no or 1,
+            num_of_rows=to_int_or_none(body.get("numOfRows")) or num_of_rows or len(rows),
+            raw=body,
+            context=call_context(
+                service_name=self.definition.service_name,
+                endpoint=endpoint,
+                mobile_os=self._http.mobile_os,
+                mobile_app=self._http.mobile_app,
+                params=request_params,
+            ),
+        )
+
+    async def iter_pages(
+        self,
+        operation: str,
+        params: Mapping[str, Any] | None = None,
+        *,
+        page_no: int = 1,
+        num_of_rows: int = 10,
+        max_pages: int | None = None,
+        max_items: int | None = None,
+        **kwargs: Any,
+    ) -> AsyncIterator[Page[RawRecord]]:
+        """Asynchronously iterate generic pages for one operation in this service."""
+
+        base_params = _without_page_params(params)
+
+        async def get_page(next_page_no: int, page_size: int) -> Page[RawRecord]:
+            return await self.call(
+                operation,
+                params=base_params,
+                page_no=next_page_no,
+                num_of_rows=page_size,
+                **kwargs,
+            )
+
+        async for page in async_iter_paginated_pages(
+            get_page,
+            page_no=page_no,
+            num_of_rows=num_of_rows,
+            max_pages=max_pages,
+            max_items=max_items,
+        ):
+            yield page
+
+    def __getattr__(self, name: str) -> Callable[..., Any]:
+        if name.startswith("_"):
+            raise AttributeError(name)
+        try:
+            operation = self._resolve_operation(name)
+        except TourApiRequestError as exc:
+            raise AttributeError(name) from exc
+
+        async def caller(
+            params: Mapping[str, Any] | None = None,
+            *,
+            page_no: int | None = 1,
+            num_of_rows: int | None = 10,
+            **kwargs: Any,
+        ) -> Page[RawRecord]:
+            return await self.call(
+                operation,
+                params=params,
+                page_no=page_no,
+                num_of_rows=num_of_rows,
+                **kwargs,
+            )
+
+        return caller
+
+    def _resolve_operation(self, operation: str) -> str:
+        if operation in self.definition.operations:
+            return operation
+        key = operation.lower()
+        try:
+            return self._operation_by_alias[key]
+        except KeyError as exc:
+            known = ", ".join(sorted(self._operation_by_alias))
+            raise TourApiRequestError(
+                f"{self.definition.key}: unknown operation {operation!r}; known aliases: {known}"
+            ) from exc
+
+
+class AsyncRelatedTourServiceClient(AsyncTourApiServiceClient):
+    """Async typed helper for TarRlteTarService1 related tourism records."""
+
+    async def area_based_list(
+        self,
+        *,
+        base_ym: str,
+        area_cd: str,
+        signgu_cd: str,
+        page_no: int | None = 1,
+        num_of_rows: int | None = 10,
+        **kwargs: Any,
+    ) -> Page[RelatedTourItem]:
+        """Fetch related tourist attractions by TourAPI region code asynchronously."""
+
+        params = {
+            "baseYm": base_ym,
+            "areaCd": area_cd,
+            "signguCd": signgu_cd,
+        }
+        params.update(_pythonic_params(kwargs))
+        return await self._typed_related_page(
+            "areaBasedList1",
+            params=params,
+            page_no=page_no,
+            num_of_rows=num_of_rows,
+        )
+
+    async def search_keyword(
+        self,
+        keyword: str,
+        *,
+        base_ym: str,
+        area_cd: str,
+        signgu_cd: str,
+        page_no: int | None = 1,
+        num_of_rows: int | None = 10,
+        **kwargs: Any,
+    ) -> Page[RelatedTourItem]:
+        """Search related tourist attractions by keyword and TourAPI region code."""
+
+        params = {
+            "baseYm": base_ym,
+            "areaCd": area_cd,
+            "signguCd": signgu_cd,
+            "keyword": keyword,
+        }
+        params.update(_pythonic_params(kwargs))
+        return await self._typed_related_page(
+            "searchKeyword1",
+            params=params,
+            page_no=page_no,
+            num_of_rows=num_of_rows,
+        )
+
+    async def iter_area_based_list(
+        self,
+        *,
+        base_ym: str,
+        area_cd: str,
+        signgu_cd: str,
+        page_no: int = 1,
+        num_of_rows: int = 10,
+        max_pages: int | None = None,
+        max_items: int | None = None,
+        **kwargs: Any,
+    ) -> AsyncIterator[Page[RelatedTourItem]]:
+        """Asynchronously iterate `area_based_list()` typed pages."""
+
+        async def get_page(next_page_no: int, page_size: int) -> Page[RelatedTourItem]:
+            return await self.area_based_list(
+                base_ym=base_ym,
+                area_cd=area_cd,
+                signgu_cd=signgu_cd,
+                page_no=next_page_no,
+                num_of_rows=page_size,
+                **kwargs,
+            )
+
+        async for page in async_iter_paginated_pages(
+            get_page,
+            page_no=page_no,
+            num_of_rows=num_of_rows,
+            max_pages=max_pages,
+            max_items=max_items,
+        ):
+            yield page
+
+    async def iter_search_keyword(
+        self,
+        keyword: str,
+        *,
+        base_ym: str,
+        area_cd: str,
+        signgu_cd: str,
+        page_no: int = 1,
+        num_of_rows: int = 10,
+        max_pages: int | None = None,
+        max_items: int | None = None,
+        **kwargs: Any,
+    ) -> AsyncIterator[Page[RelatedTourItem]]:
+        """Asynchronously iterate `search_keyword()` typed pages."""
+
+        async def get_page(next_page_no: int, page_size: int) -> Page[RelatedTourItem]:
+            return await self.search_keyword(
+                keyword,
+                base_ym=base_ym,
+                area_cd=area_cd,
+                signgu_cd=signgu_cd,
+                page_no=next_page_no,
+                num_of_rows=page_size,
+                **kwargs,
+            )
+
+        async for page in async_iter_paginated_pages(
+            get_page,
+            page_no=page_no,
+            num_of_rows=num_of_rows,
+            max_pages=max_pages,
+            max_items=max_items,
+        ):
+            yield page
+
+    async def _typed_related_page(
+        self,
+        endpoint: str,
+        *,
+        params: Mapping[str, Any],
+        page_no: int | None,
+        num_of_rows: int | None,
+    ) -> Page[RelatedTourItem]:
+        request_params = _page_params(params=params, page_no=page_no, num_of_rows=num_of_rows)
+        body = await self._http.get(endpoint, params=without_none(request_params))
         rows = _extract_items(body, endpoint, service_name=self.definition.service_name)
         parsed = tuple(_related_tour_item(row) for row in rows)
         return Page(

@@ -149,9 +149,16 @@ def test_malformed_items_shape_raises_parse_error(fake_client_factory):
 
 def test_build_session_and_empty_service_key():
     session = build_session(retries=0)
-    assert session is not None
-    assert session.headers["User-Agent"] == DEFAULT_USER_AGENT
-    assert build_session(retries=1) is not None
+    try:
+        assert session is not None
+        assert session.headers["User-Agent"] == DEFAULT_USER_AGENT
+    finally:
+        session.close()
+    retry_session = build_session(retries=1)
+    try:
+        assert retry_session is not None
+    finally:
+        retry_session.close()
 
     with pytest.raises(TourApiAuthError):
         TourApiHttp(

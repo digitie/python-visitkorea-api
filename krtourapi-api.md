@@ -24,7 +24,9 @@
 | `pageNo` | 1 이상 |
 | `numOfRows` | 1~1000 |
 
-실 서버 확인 결과 TourAPI 게이트웨이는 기본 `python-requests` User-Agent에 HTTP 403을 반환할 수 있다. 기본 `build_session()`은 브라우저 호환 User-Agent를 넣는다. 커스텀 session을 주입할 때도 User-Agent를 유지한다.
+실 서버 확인 결과 TourAPI 게이트웨이는 기본 Python HTTP 클라이언트 User-Agent에 HTTP 403을 반환할 수 있다. 기본 `build_session()`과 `build_async_session()`은 브라우저 호환 User-Agent를 넣는다. 커스텀 session을 주입할 때도 User-Agent를 유지한다.
+
+HTTP 계층은 `httpx` 기반이다. `KrTourApiClient`와 `TourApiHubClient`는 동기 `httpx.Client` 경로를 사용하고, `AsyncKrTourApiClient`와 `AsyncTourApiHubClient`는 `httpx.AsyncClient` 경로를 사용한다. 응답 envelope 파싱, XML 오류 매핑, 서비스키 redaction, provenance 생성 규칙은 동기/비동기에서 동일해야 한다.
 
 ## 구현 endpoint
 
@@ -67,6 +69,7 @@ hub.related_tour.area_based_list(base_ym="202504", area_cd="51", signgu_cd="5113
 `related_tour` 서비스는 `area_based_list()`와 `search_keyword()` typed helper를 제공해 `Page[RelatedTourItem]`을 반환한다. 기존 generic `call()`은 계속 `Page[Mapping]` raw record를 반환한다. TarRlteTarService1의 `areaCd`와 `signguCd`는 해당 서비스의 TourAPI 지역 코드이며 법정동코드가 아니다.
 
 typed client와 Hub는 모두 pagination iterator를 제공한다. `Page.has_next_page`는 `total_count`, `page_no`, `num_of_rows`를 기준으로 계산하고, `iter_pages()`는 다음 `pageNo`를 증가시키며 호출한다. `max_pages` 또는 `max_items`는 비정상 응답에 대한 guard로 사용한다. 목록 API의 `NO_DATA`는 빈 iterator이고, 인증/쿼터/서버 오류는 기존 exception mapping을 그대로 따른다.
+async client와 async Hub는 같은 규칙의 async iterator를 제공한다.
 
 ## 코드 체계
 

@@ -24,7 +24,7 @@ src/visitkorea/
 ├── client.py       # public client methods and response parsing
 ├── hub.py          # catalog-aware generic client for all official TourAPI services
 ├── services.py     # downloaded manual catalog distilled into service definitions
-├── _http.py        # requests session, TourAPI envelope, error mapping
+├── _http.py        # httpx clients, TourAPI envelope, error mapping
 ├── _convert.py     # small conversion helpers
 ├── _time.py        # KST timestamp parsing
 ├── enums.py        # public constants and enum values
@@ -37,7 +37,7 @@ src/visitkorea/
 ## Test policy
 
 - Ordinary tests must be offline.
-- Use fake sessions or `responses` for HTTP behavior.
+- Use fake sessions, fake async sessions, or `httpx.MockTransport` for HTTP behavior.
 - Live tests require `@pytest.mark.live` and `KTO_SERVICE_KEY`.
 - Do not assert unstable real tourism data values in live tests; assert shape and types only.
 - Keep `TourApiHubClient` tests catalog-driven; do not call the real 27 services in default tests.

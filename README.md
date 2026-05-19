@@ -27,11 +27,11 @@
 pip install -e ".[dev]"
 ```
 
-패키지 런타임 의존성은 `requests`, `pydantic>=2.7`, 로컬 `python-kraddr-base @ file:../python-kraddr-base`, Windows용 `tzdata`입니다.
+패키지 런타임 의존성은 `httpx`, `pydantic>=2.7`, 로컬 `python-kraddr-base @ file:../python-kraddr-base`, Windows용 `tzdata`입니다.
 
 ## 인증키
 
-공공데이터포털에서 API 활용신청 후 **Decoding 인증키**를 환경변수에 넣는 방식을 권장합니다. 이 라이브러리는 `requests.get(..., params=...)`를 사용하므로 이미 encoding된 키를 다시 encoding하지 않도록 주의하세요.
+공공데이터포털에서 API 활용신청 후 **Decoding 인증키**를 환경변수에 넣는 방식을 권장합니다. 이 라이브러리는 `httpx`의 `params=`로 query string을 만들기 때문에 이미 encoding된 키를 다시 encoding하지 않도록 주의하세요.
 
 ```bash
 export KTO_SERVICE_KEY="발급받은_decoding_인증키"
@@ -82,9 +82,22 @@ detail = client.detail_common(page.items[0].content_id)
 print(detail.overview)
 ```
 
+asyncio 애플리케이션에서는 같은 public method 이름을 제공하는 async 클라이언트를 사용합니다.
+
+```python
+from visitkorea import AsyncKrTourApiClient, ContentType
+
+async with AsyncKrTourApiClient.from_env(mobile_app="my-travel-app") as client:
+    page = await client.search_keyword(
+        "경복궁",
+        content_type_id=ContentType.TOURIST_ATTRACTION,
+    )
+```
+
 ## Typed Client
 
 `KrTourApiClient`는 자주 쓰는 국문 관광정보서비스를 typed method로 제공합니다.
+`AsyncKrTourApiClient`는 같은 메서드를 `await` 가능한 형태로 제공합니다.
 
 | 메서드 | TourAPI endpoint | 반환 |
 |---|---|---|
@@ -107,6 +120,7 @@ print(detail.overview)
 ## 전체 OpenAPI Hub
 
 `TourApiHubClient`는 `api.visitkorea.or.kr/#/useUtilExercises`의 메뉴얼 27개 기준 전체 서비스를 generic 방식으로 호출합니다. 서비스별 파라미터는 메뉴얼 원문 이름을 그대로 전달하고, 결과는 공통 `Page[Mapping]`으로 받습니다.
+`AsyncTourApiHubClient`도 같은 카탈로그와 operation alias를 사용합니다.
 
 ```python
 from visitkorea import PlaceCoordinate, TourApiHubClient
@@ -159,6 +173,16 @@ for page in hub.related_tour.iter_area_based_list(
     max_pages=10,
 ):
     store_related(page.items)
+```
+
+async 클라이언트의 페이지 반복은 async iterator입니다.
+
+```python
+async for page in client.iter_pages(client.area_codes, num_of_rows=100, max_pages=20):
+    cache_codes(page.items)
+
+async for page in hub.iter_pages("kor", "areaCode2", num_of_rows=100, max_pages=20):
+    cache_raw_codes(page.items)
 ```
 
 ## Pydantic 모델

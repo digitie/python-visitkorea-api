@@ -336,6 +336,46 @@ def test_operation_schema_location_and_related_tour_required_parameters():
     assert "not legal-dong" in related.details
 
 
+def test_operation_schema_covers_catalog_families_and_errors():
+    cases = [
+        ("kor", "areaCode2", "area_code"),
+        ("kor", "categoryCode2", "category_code"),
+        ("kor", "ldongCode2", "legal_dong_code"),
+        ("kor", "lclsSystmCode2", "classification_code"),
+        ("kor", "searchFestival2", "festival_search"),
+        ("kor", "searchStay2", "stay_search"),
+        ("kor", "detailCommon2", "common_detail"),
+        ("kor", "detailIntro2", "intro_detail"),
+        ("kor", "detailInfo2", "structured_detail"),
+        ("kor", "detailImage2", "image_detail"),
+        ("kor", "areaBasedSyncList2", "sync_list"),
+        ("photo_gallery", "gallerySearchList1", "gallery_search"),
+        ("photo_award", "phokoAwrdList", "award_list"),
+        ("datalab", "metcoRegnVisitrDDList", "visitor_data"),
+        ("durunubi", "routeList", "course_list"),
+        ("employment", "empmnInfoDetail", "employment"),
+        ("tats_concentration", "tatsCnctrRateList", "concentration"),
+        ("area_diversity", "areaTouDivList", "regional_analytics"),
+        ("employment", "code", "generic"),
+    ]
+
+    for service_id, operation, expected_family in cases:
+        schema = get_operation_schema(service_id, operation)
+
+        assert schema.service_id == service_id
+        assert schema.operation
+        assert schema.summary
+        assert schema.details
+        assert schema.parameters
+        if expected_family == "generic":
+            assert schema.parameters[0].name == "service_specific"
+
+    with pytest.raises(TourApiRequestError, match="unknown TourAPI service"):
+        get_operation_schema("missing", "areaCode2")
+    with pytest.raises(TourApiRequestError, match="unknown operation"):
+        get_operation_schema("kor", "missing")
+
+
 def test_hub_coordinate_alias_expands_to_tourapi_params():
     session = FakeSession(
         [

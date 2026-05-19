@@ -13,11 +13,11 @@
 pip install -e ".[dev]"
 ```
 
-라이브러리 런타임 의존성은 `requests`, `pydantic>=2.7`, 로컬 `python-kraddr-base @ file:../python-kraddr-base`, Windows용 `tzdata`입니다. 외부 앱에서 타입 검사를 적극적으로 쓰려면 `src/visitkorea/py.typed`가 포함되어 있으므로 `mypy`나 pyright가 공개 타입을 읽을 수 있습니다.
+라이브러리 런타임 의존성은 `httpx`, `pydantic>=2.7`, 로컬 `python-kraddr-base @ file:../python-kraddr-base`, Windows용 `tzdata`입니다. 외부 앱에서 타입 검사를 적극적으로 쓰려면 `src/visitkorea/py.typed`가 포함되어 있으므로 `mypy`나 pyright가 공개 타입을 읽을 수 있습니다.
 
 ## 인증키
 
-공공데이터포털에서 TourAPI 활용신청을 완료한 뒤 **Decoding 인증키**를 사용합니다. `visitkorea`는 `requests`의 `params=`로 query string을 만들기 때문에 이미 encoding된 인증키를 넣으면 다시 encoding되어 인증 오류가 날 수 있습니다.
+공공데이터포털에서 TourAPI 활용신청을 완료한 뒤 **Decoding 인증키**를 사용합니다. `visitkorea`는 `httpx`의 `params=`로 query string을 만들기 때문에 이미 encoding된 인증키를 넣으면 다시 encoding되어 인증 오류가 날 수 있습니다.
 
 ```bash
 export KTO_SERVICE_KEY="발급받은_decoding_인증키"
@@ -54,6 +54,8 @@ Set-Content .env.local 'KTO_SERVICE_KEY=발급받은_decoding_인증키'
 | 새 operation을 빠르게 실험 | `TourApiHubClient.call()` |
 | typed wrapper에 없는 국문 endpoint 직접 호출 | `KrTourApiClient.raw_endpoint()` |
 
+asyncio 기반 애플리케이션에서는 같은 메서드 이름을 `await`로 호출하는 `AsyncKrTourApiClient`와 `AsyncTourApiHubClient`를 사용합니다. 동기 클라이언트와 비동기 클라이언트는 모두 내부적으로 `httpx`를 사용합니다.
+
 ## Typed Client 기본 흐름
 
 ```python
@@ -74,6 +76,18 @@ for item in page.items:
 ```
 
 목록 endpoint는 `Page[T]`를 반환합니다. `Page.items`는 항상 tuple이고, TourAPI가 `items.item`을 빈 값, 단일 object, list 중 무엇으로 보내도 내부에서 정규화됩니다.
+
+비동기 흐름:
+
+```python
+from visitkorea import AsyncKrTourApiClient, ContentType
+
+async with AsyncKrTourApiClient.from_env(mobile_app="my-travel-app") as client:
+    page = await client.search_keyword(
+        "경복궁",
+        content_type_id=ContentType.TOURIST_ATTRACTION,
+    )
+```
 
 ## 국문 typed method 목록
 
@@ -204,6 +218,21 @@ related = hub.related_tour.search_keyword(
 
 operation은 원문 이름과 snake_case alias를 모두 지원합니다.
 
+비동기 Hub도 같은 카탈로그와 alias를 사용합니다.
+
+```python
+from visitkorea import AsyncTourApiHubClient
+
+async with AsyncTourApiHubClient.from_env(mobile_app="my-travel-app") as hub:
+    camping = await hub.gocamping.based_list(facltNm="숲")
+    related = await hub.related_tour.search_keyword(
+        "뮤지엄산",
+        base_ym="202504",
+        area_cd="51",
+        signgu_cd="51130",
+    )
+```
+
 ```python
 hub.gocamping.based_list()
 hub.gocamping.call("basedList")
@@ -236,6 +265,18 @@ for page in client.iter_pages(client.area_codes, num_of_rows=100, max_pages=20):
         ...
 
 for page in hub.iter_pages("kor", "areaCode2", num_of_rows=100, max_pages=20):
+    for row in page.items:
+        ...
+```
+
+async 클라이언트에서는 `async for`를 사용합니다.
+
+```python
+async for page in client.iter_pages(client.area_codes, num_of_rows=100, max_pages=20):
+    for code in page.items:
+        ...
+
+async for page in hub.iter_pages("kor", "areaCode2", num_of_rows=100, max_pages=20):
     for row in page.items:
         ...
 ```
