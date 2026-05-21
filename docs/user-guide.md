@@ -20,21 +20,21 @@ pip install -e ".[dev]"
 공공데이터포털에서 TourAPI 활용신청을 완료한 뒤 **Decoding 인증키**를 사용합니다. `visitkorea`는 `httpx`의 `params=`로 query string을 만들기 때문에 이미 encoding된 인증키를 넣으면 다시 encoding되어 인증 오류가 날 수 있습니다.
 
 ```bash
-export KTO_SERVICE_KEY="발급받은_decoding_인증키"
+export DATA_GO_KR_SERVICE_KEY="발급받은_decoding_인증키"
 ```
 
 PowerShell:
 
 ```powershell
-$env:KTO_SERVICE_KEY="발급받은_decoding_인증키"
+$env:DATA_GO_KR_SERVICE_KEY="발급받은_decoding_인증키"
 ```
 
-`KrTourApiClient.from_env()`와 `TourApiHubClient.from_env()`는 기본적으로 `KTO_SERVICE_KEY`, `KRTOURAPI_SERVICE_KEY`, `TOURAPI_SERVICE_KEY` 순서로 읽습니다.
+`KrTourApiClient.from_env()`와 `TourApiHubClient.from_env()`는 기본적으로 `DATA_GO_KR_SERVICE_KEY`를 읽습니다.
 
 로컬 live test에서는 `.env.local`을 사용할 수 있습니다.
 
 ```powershell
-Set-Content .env.local 'KTO_SERVICE_KEY=발급받은_decoding_인증키'
+Set-Content .env.local 'DATA_GO_KR_SERVICE_KEY=발급받은_decoding_인증키'
 .\scripts\run_live_tests.ps1
 ```
 

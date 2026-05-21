@@ -104,7 +104,7 @@ def test_api_catalog_rows_include_dataset_name_and_key_links():
     assert kor_keyword["service_key_source"] == "data.go.kr"
     assert kor_keyword["service_key_apply_url"].startswith("https://www.data.go.kr/")
     assert kor_keyword["manual_url"].startswith("https://api.visitkorea.or.kr/")
-    assert "KTO_DATA_GO_KR_SERVICE_KEY" in kor_keyword["service_key_env_names"]
+    assert kor_keyword["service_key_env_names"] == ["DATA_GO_KR_SERVICE_KEY"]
 
     service_rows = get_service_catalog()
     assert len(service_rows) == 27
@@ -133,9 +133,9 @@ def test_all_catalog_operations_are_routable_without_live_api_calls():
     assert len(session.calls) == total_operations
 
 
-def test_hub_from_env_uses_fallback_names(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.delenv("KTO_SERVICE_KEY", raising=False)
-    monkeypatch.setenv("TOURAPI_SERVICE_KEY", "ENVKEY")
+def test_hub_from_env_uses_data_go_kr_service_key(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.delenv("DATA_GO_KR_SERVICE_KEY", raising=False)
+    monkeypatch.setenv("DATA_GO_KR_SERVICE_KEY", "ENVKEY")
 
     hub = TourApiHubClient.from_env(session=FakeSession([]))
 

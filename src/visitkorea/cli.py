@@ -18,7 +18,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="visitkorea")
     parser.add_argument(
         "--service-key",
-        help="TourAPI decoded service key. Defaults to KTO_SERVICE_KEY.",
+        help="TourAPI decoded service key. Defaults to DATA_GO_KR_SERVICE_KEY.",
     )
     parser.add_argument("--mobile-app", default="visitkorea")
     parser.add_argument("--language", default="ko")

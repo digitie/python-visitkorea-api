@@ -68,7 +68,7 @@ class KrTourApiClient:
         )
         if not key:
             raise TourApiAuthError(
-                "service_key is required. Pass service_key=... or set KTO_DATA_GO_KR_SERVICE_KEY."
+                "service_key is required. Pass service_key=... or set DATA_GO_KR_SERVICE_KEY."
             )
         resolved_service_name = service_name or _service_name_for_language(language)
         self.service_key = key
@@ -91,15 +91,9 @@ class KrTourApiClient:
     @classmethod
     def from_env(
         cls,
-        name: str = "KTO_DATA_GO_KR_SERVICE_KEY",
+        name: str = "DATA_GO_KR_SERVICE_KEY",
         *,
-        fallback_names: tuple[str, ...] = (
-            "DATA_GO_KR_SERVICE_KEY",
-            "DATA_GOKR_SERVICE_KEY",
-            "KTO_SERVICE_KEY",
-            "KRTOURAPI_SERVICE_KEY",
-            "TOURAPI_SERVICE_KEY",
-        ),
+        fallback_names: tuple[str, ...] = (),
         service_key_source: str = DEFAULT_SERVICE_KEY_SOURCE,
         env_file_paths: Iterable[str] | None = None,
         **kwargs: Any,
@@ -689,7 +683,7 @@ class AsyncKrTourApiClient:
         )
         if not key:
             raise TourApiAuthError(
-                "service_key is required. Pass service_key=... or set KTO_DATA_GO_KR_SERVICE_KEY."
+                "service_key is required. Pass service_key=... or set DATA_GO_KR_SERVICE_KEY."
             )
         resolved_service_name = service_name or _service_name_for_language(language)
         self.service_key = key
@@ -712,15 +706,9 @@ class AsyncKrTourApiClient:
     @classmethod
     def from_env(
         cls,
-        name: str = "KTO_DATA_GO_KR_SERVICE_KEY",
+        name: str = "DATA_GO_KR_SERVICE_KEY",
         *,
-        fallback_names: tuple[str, ...] = (
-            "DATA_GO_KR_SERVICE_KEY",
-            "DATA_GOKR_SERVICE_KEY",
-            "KTO_SERVICE_KEY",
-            "KRTOURAPI_SERVICE_KEY",
-            "TOURAPI_SERVICE_KEY",
-        ),
+        fallback_names: tuple[str, ...] = (),
         service_key_source: str = DEFAULT_SERVICE_KEY_SOURCE,
         env_file_paths: Iterable[str] | None = None,
         **kwargs: Any,

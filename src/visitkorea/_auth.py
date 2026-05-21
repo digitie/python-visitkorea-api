@@ -20,12 +20,7 @@ class ServiceKeySource:
 
 
 DATA_GO_KR_ENV_NAMES: Final[tuple[str, ...]] = (
-    "KTO_DATA_GO_KR_SERVICE_KEY",
     "DATA_GO_KR_SERVICE_KEY",
-    "DATA_GOKR_SERVICE_KEY",
-    "KTO_SERVICE_KEY",
-    "KRTOURAPI_SERVICE_KEY",
-    "TOURAPI_SERVICE_KEY",
 )
 API_VISITKOREA_ENV_NAMES: Final[tuple[str, ...]] = (
     "VISITKOREA_API_SERVICE_KEY",

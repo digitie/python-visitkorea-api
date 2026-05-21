@@ -30,7 +30,7 @@ def test_user_docs_cover_public_model_usage() -> None:
         "TourApiHubClient",
         "PlaceCoordinate",
         "model_dump",
-        "KTO_SERVICE_KEY",
+        "DATA_GO_KR_SERVICE_KEY",
     ):
         assert term in user_guide
 

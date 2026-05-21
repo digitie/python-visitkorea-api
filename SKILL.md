@@ -99,5 +99,5 @@ Default tests should cover:
 - public enum/type exports
 - WGS84 coordinate normalization
 
-Live tests, if added, must be marked `live` and skip when `KTO_SERVICE_KEY` is absent.
+Live tests, if added, must be marked `live` and skip when `DATA_GO_KR_SERVICE_KEY` is absent.
 Use `scripts/run_live_tests.ps1` to load `.env.local`; do not hard-code keys in tests.

@@ -69,5 +69,5 @@ testpaths = ["tests"]
 pythonpath = ["src"]
 addopts = "-ra"
 markers = [
-  "live: tests that call the real TourAPI service and require KTO_SERVICE_KEY",
+  "live: tests that call the real TourAPI service and require DATA_GO_KR_SERVICE_KEY",
 ]

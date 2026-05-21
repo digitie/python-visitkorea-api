@@ -38,7 +38,7 @@ src/visitkorea/
 
 - Ordinary tests must be offline.
 - Use fake sessions, fake async sessions, or `httpx.MockTransport` for HTTP behavior.
-- Live tests require `@pytest.mark.live` and `KTO_SERVICE_KEY`.
+- Live tests require `@pytest.mark.live` and `DATA_GO_KR_SERVICE_KEY`.
 - Do not assert unstable real tourism data values in live tests; assert shape and types only.
 - Keep `TourApiHubClient` tests catalog-driven; do not call the real 27 services in default tests.
 - Keep official manual ZIP/DOCX downloads in `.manuals/`, never in git.

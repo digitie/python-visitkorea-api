@@ -38,7 +38,7 @@
 
 **실수:** `data.go.kr` 호출 키와 `api.visitkorea.or.kr` 쪽 도구 키를 같은 값으로 가정한다.
 
-**증상:** 디버그 UI나 보조 도구에서 다른 데이터소스 키가 필요한데 기존 `KTO_SERVICE_KEY`만 읽어 잘못된 키를 보낸다.
+**증상:** 디버그 UI나 보조 도구에서 다른 데이터소스 키가 필요한데 기존 `DATA_GO_KR_SERVICE_KEY`만 읽어 잘못된 키를 보낸다.
 
 **규칙:** 기본 TourAPI 호출은 `data.go.kr` 키 소스를 쓰고, 도구에서 별도 키가 필요하면 `api.visitkorea` 키 소스를 명시한다. 환경변수가 없으면 로컬 `.env`에서 같은 이름을 읽는다.
 
@@ -142,7 +142,7 @@
 
 **규칙:** 인증키는 `.env.local` 또는 현재 shell 환경변수에만 둔다. `.env*`는 gitignore에 유지하고, 커밋 전 `git status --ignored .env.local`로 추적되지 않는지 확인한다.
 
-**가드레일:** `scripts/run_live_tests.ps1`는 `.env.local`을 읽기만 하며, live test는 `KTO_SERVICE_KEY`가 없으면 skip한다.
+**가드레일:** `scripts/run_live_tests.ps1`는 `.env.local`을 읽기만 하며, live test는 `DATA_GO_KR_SERVICE_KEY`가 없으면 skip한다.
 
 ## 실 서버 응답 코드를 문서 예시 `00`만 정상으로 보기
 

@@ -393,10 +393,7 @@ def test_raw_endpoint_preserves_raw_records(fake_client_factory):
 
 
 def test_env_and_language_errors(monkeypatch, tmp_path, fake_client_factory):
-    monkeypatch.delenv("KTO_SERVICE_KEY", raising=False)
-    monkeypatch.delenv("KTO_DATA_GO_KR_SERVICE_KEY", raising=False)
-    monkeypatch.delenv("KRTOURAPI_SERVICE_KEY", raising=False)
-    monkeypatch.delenv("TOURAPI_SERVICE_KEY", raising=False)
+    monkeypatch.delenv("DATA_GO_KR_SERVICE_KEY", raising=False)
     monkeypatch.chdir(tmp_path)
 
     with pytest.raises(TourApiAuthError):
@@ -408,7 +405,7 @@ def test_env_and_language_errors(monkeypatch, tmp_path, fake_client_factory):
     language_client = KrTourApiClient("KEY", language=Language.KOREAN, session=FakeSession([]))
     assert language_client.service_name == "KorService2"
 
-    monkeypatch.setenv("KTO_SERVICE_KEY", "ENV_KEY")
+    monkeypatch.setenv("DATA_GO_KR_SERVICE_KEY", "ENV_KEY")
     client, session = fake_client_factory(FakeResponse(tour_payload([])))
     env_client = KrTourApiClient(session=session)
     env_client.area_codes()
@@ -417,16 +414,13 @@ def test_env_and_language_errors(monkeypatch, tmp_path, fake_client_factory):
 
 
 def test_dotenv_service_key_lookup_is_source_specific(monkeypatch, tmp_path):
-    monkeypatch.delenv("KTO_SERVICE_KEY", raising=False)
-    monkeypatch.delenv("KRTOURAPI_SERVICE_KEY", raising=False)
-    monkeypatch.delenv("TOURAPI_SERVICE_KEY", raising=False)
-    monkeypatch.delenv("KTO_DATA_GO_KR_SERVICE_KEY", raising=False)
+    monkeypatch.delenv("DATA_GO_KR_SERVICE_KEY", raising=False)
     monkeypatch.delenv("VISITKOREA_API_SERVICE_KEY", raising=False)
     monkeypatch.chdir(tmp_path)
     (tmp_path / ".env").write_text(
         "\n".join(
             [
-                'KTO_DATA_GO_KR_SERVICE_KEY=" DATA_KEY "',
+                'DATA_GO_KR_SERVICE_KEY=" DATA_KEY "',
                 "VISITKOREA_API_SERVICE_KEY= API_KEY ",
             ]
         ),

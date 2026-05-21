@@ -12,7 +12,7 @@
 해결:
 
 1. 공공데이터포털 마이페이지에서 Decoding 키를 확인한다.
-2. `KTO_SERVICE_KEY`에 Decoding 키를 넣는다.
+2. `DATA_GO_KR_SERVICE_KEY`에 Decoding 키를 넣는다.
 3. 국문 관광정보서비스_GW 활용 신청 상태를 확인한다.
 
 ## 결과가 비어 있음

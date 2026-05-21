@@ -42,7 +42,7 @@ mypy src/visitkorea
 문서가 public API의 일부처럼 쓰이므로 기본 테스트에 가벼운 문서 guardrail을 둔다.
 
 - README의 로컬 `.md` 링크는 깨지면 안 된다.
-- `docs/user-guide.md`는 `KrTourApiClient`, `TourApiHubClient`, `PlaceCoordinate`, `model_dump`, `KTO_SERVICE_KEY`를 언급해야 한다.
+- `docs/user-guide.md`는 `KrTourApiClient`, `TourApiHubClient`, `PlaceCoordinate`, `model_dump`, `DATA_GO_KR_SERVICE_KEY`를 언급해야 한다.
 - `docs/pydantic-models.md`는 `TourApiModel`, `model_dump_json`, `model_json_schema`, `raw`, `model_copy`를 언급해야 한다.
 
 문서 테스트는 문장 품질을 검증하는 용도가 아니라, 기능 추가 후 문서 파일을 빠뜨리는 실수를 막는 최소 안전장치다.
@@ -57,14 +57,14 @@ import pytest
 
 @pytest.mark.live
 def test_live_area_codes():
-    key = os.getenv("KTO_SERVICE_KEY")
+    key = os.getenv("DATA_GO_KR_SERVICE_KEY")
     if not key:
-        pytest.skip("KTO_SERVICE_KEY is not set")
+        pytest.skip("DATA_GO_KR_SERVICE_KEY is not set")
 ```
 
 live test에서는 관광지 이름, 총 건수, 정렬 순서처럼 변하기 쉬운 값을 단정하지 않는다. 응답 shape, 타입, 필수 공통 필드만 확인한다.
 
-로컬에서 실 서버 테스트를 실행할 때는 `.env.local`에 `KTO_SERVICE_KEY=...`를 넣고 아래 스크립트를 사용한다. `.env.local`은 커밋하지 않는다.
+로컬에서 실 서버 테스트를 실행할 때는 `.env.local`에 `DATA_GO_KR_SERVICE_KEY=...`를 넣고 아래 스크립트를 사용한다. `.env.local`은 커밋하지 않는다.
 
 ```powershell
 .\scripts\run_live_tests.ps1

@@ -11,9 +11,9 @@ pytestmark = pytest.mark.live
 
 
 def _service_key() -> str:
-    key = os.getenv("KTO_SERVICE_KEY")
+    key = os.getenv("DATA_GO_KR_SERVICE_KEY")
     if not key:
-        pytest.skip("KTO_SERVICE_KEY is not set")
+        pytest.skip("DATA_GO_KR_SERVICE_KEY is not set")
     return key
 
 

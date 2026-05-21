@@ -34,21 +34,21 @@ pip install -e ".[dev]"
 공공데이터포털에서 API 활용신청 후 **Decoding 인증키**를 환경변수에 넣는 방식을 권장합니다. 이 라이브러리는 `httpx`의 `params=`로 query string을 만들기 때문에 이미 encoding된 키를 다시 encoding하지 않도록 주의하세요.
 
 ```bash
-export KTO_SERVICE_KEY="발급받은_decoding_인증키"
+export DATA_GO_KR_SERVICE_KEY="발급받은_decoding_인증키"
 ```
 
 PowerShell:
 
 ```powershell
-$env:KTO_SERVICE_KEY="발급받은_decoding_인증키"
+$env:DATA_GO_KR_SERVICE_KEY="발급받은_decoding_인증키"
 ```
 
-대체 환경변수로 `KTO_DATA_GO_KR_SERVICE_KEY`, `DATA_GO_KR_SERVICE_KEY`, `DATA_GOKR_SERVICE_KEY`, `KRTOURAPI_SERVICE_KEY`, `TOURAPI_SERVICE_KEY`도 읽습니다. 복사/붙여넣기 중 들어간 공백, 줄바꿈, 탭은 요청 전에 자동 제거합니다.
+data.go.kr endpoint는 `DATA_GO_KR_SERVICE_KEY`를 읽습니다. 복사/붙여넣기 중 들어간 공백, 줄바꿈, 탭은 요청 전에 자동 제거합니다.
 
 환경변수가 없으면 현재 작업 디렉터리나 상위 디렉터리의 `.env`에서 같은 이름을 읽습니다.
 
 ```bash
-KTO_DATA_GO_KR_SERVICE_KEY=발급받은_decoding_인증키
+DATA_GO_KR_SERVICE_KEY=발급받은_decoding_인증키
 ```
 
 `api.visitkorea.or.kr` 쪽 키가 별도로 필요한 도구에서는 `VISITKOREA_API_SERVICE_KEY`, `API_VISITKOREA_SERVICE_KEY`, `KTO_VISITKOREA_SERVICE_KEY`를 사용할 수 있습니다.
@@ -56,7 +56,7 @@ KTO_DATA_GO_KR_SERVICE_KEY=발급받은_decoding_인증키
 로컬 live test를 돌릴 때는 저장소에 커밋되지 않는 `.env.local`을 사용할 수 있습니다.
 
 ```powershell
-Set-Content .env.local 'KTO_SERVICE_KEY=발급받은_decoding_인증키'
+Set-Content .env.local 'DATA_GO_KR_SERVICE_KEY=발급받은_decoding_인증키'
 .\scripts\run_live_tests.ps1
 ```
 
@@ -297,7 +297,7 @@ ruff check .
 mypy src/visitkorea
 ```
 
-기본 테스트는 실제 TourAPI를 호출하지 않습니다. live test는 `@pytest.mark.live`로 분리하고, `KTO_SERVICE_KEY`가 없으면 skip합니다.
+기본 테스트는 실제 TourAPI를 호출하지 않습니다. live test는 `@pytest.mark.live`로 분리하고, `DATA_GO_KR_SERVICE_KEY`가 없으면 skip합니다.
 
 Streamlit 디버그 UI는 선택 기능입니다.
 
