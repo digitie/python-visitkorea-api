@@ -1,38 +1,40 @@
 ---
 name: visitkorea-python-builder
-description: Use this skill when building, extending, debugging, or documenting visitkorea, a Python client for Korea Tourism Organization TourAPI on data.go.kr.
+description: data.go.kr의 Korea Tourism Organization TourAPI용 Python client인 `visitkorea`를 구현, 확장, 디버깅, 문서화할 때 사용한다.
 ---
 
 # VisitKorea Python Library Builder
 
-You are helping build and maintain `visitkorea`, a Python client for Korea Tourism Organization TourAPI.
+`visitkorea`는 한국관광공사 TourAPI용 Python client다. 공개 동작을 바꾸기 전에는 `README.md`, `krtourapi-api.md`, `AGENTS.md`를 읽는다.
 
-Read `README.md`, `krtourapi-api.md`, and `AGENTS.md` before changing public behavior.
+## 문서 언어 정책
 
-## Project invariants
+이 저장소의 모든 Markdown/RST 문서는 한글로 작성한다. 공식 API field, code identifier, 명령어, URL, provider 원문은 필요한 경우 원문을 유지한다.
 
-1. Default service is `KorService2`.
-2. Default base URL is `http://apis.data.go.kr/B551011`.
-3. Auth parameter is `serviceKey`.
-4. Public examples assume a Decoding service key because requests are made with `params=`.
-5. Always request `_type=json`.
-6. Always include `MobileOS` and `MobileApp`.
-7. Default tests must not call the real API.
-8. Preserve unknown API fields in model `raw`.
-9. Normalize `items.item` whether it is missing, a single object, or a list.
-10. Service-key errors can arrive as XML even when `_type=json`.
-11. `TourApiHubClient` covers every service listed in `api.visitkorea.or.kr/#/useUtilExercises`.
-12. Downloaded official manual ZIP/DOCX files stay in `.manuals/` and are never committed.
-13. Secrets stay in local `.env.local` or shell environment only; never commit API keys.
-14. Treat `resultCode=0000` as success, and keep a browser-compatible User-Agent for live TourAPI calls.
-15. Public coordinate APIs use `kraddr.base.PlaceCoordinate(lat, lon)`; convert to TourAPI `mapX`/`mapY` only at the request boundary.
-16. Keep enum/type exports stable for downstream applications and type checkers.
-17. Public response models inherit from `TourApiModel`/Pydantic v2 `BaseModel` and remain frozen.
-18. Keep unstable TourAPI fields in `raw`; do not over-model content-type-specific fields.
+## 프로젝트 불변 조건
 
-## Supported endpoints
+1. 기본 service는 `KorService2`다.
+2. 기본 base URL은 `http://apis.data.go.kr/B551011`이다.
+3. 인증 parameter는 `serviceKey`다.
+4. Public example은 `params=`를 사용하므로 decoding service key를 가정한다.
+5. 항상 `_type=json`을 요청한다.
+6. 항상 `MobileOS`와 `MobileApp`을 포함한다.
+7. 기본 test는 실제 API를 호출하지 않는다.
+8. Unknown API field는 model `raw`에 보존한다.
+9. `items.item`이 없거나 단일 object이거나 list인 경우를 모두 정규화한다.
+10. `_type=json`이어도 service-key error는 XML로 올 수 있다.
+11. `TourApiHubClient`는 `api.visitkorea.or.kr/#/useUtilExercises`의 모든 service를 cover한다.
+12. Downloaded official manual ZIP/DOCX는 `.manuals/`에 두고 commit하지 않는다.
+13. Secret은 local `.env.local` 또는 shell environment에만 둔다.
+14. `resultCode=0000`을 success로 처리하고 live TourAPI call에는 browser-compatible User-Agent를 유지한다.
+15. 공개 coordinate API는 `kraddr.base.PlaceCoordinate(lat, lon)`을 사용하고 TourAPI `mapX`/`mapY` 변환은 request boundary에서만 수행한다.
+16. Downstream application과 type checker를 위해 enum/type export를 안정적으로 유지한다.
+17. 공개 response model은 `TourApiModel`/Pydantic v2 `BaseModel`을 상속하고 frozen 상태를 유지한다.
+18. 불안정한 TourAPI field는 `raw`에 보존하고 content-type별 세부 field를 과도하게 model화하지 않는다.
 
-`KrTourApiClient` exposes typed wrappers for the common `KorService2` endpoints below.
+## 지원 endpoint
+
+`KrTourApiClient`는 일반적인 `KorService2` endpoint에 typed wrapper를 제공한다.
 
 | Public method | Endpoint |
 |---|---|
@@ -51,8 +53,7 @@ Read `README.md`, `krtourapi-api.md`, and `AGENTS.md` before changing public beh
 | `legal_dong_codes()` | `ldongCode2` |
 | `classification_system_codes()` | `lclsSystmCode2` |
 
-All other official services are exposed through `TourApiHubClient` and `SERVICE_DEFINITIONS`.
-Operations can be called by the manual's camelCase name or a unique snake_case alias:
+그 외 공식 service는 `TourApiHubClient`와 `SERVICE_DEFINITIONS`로 노출한다. Operation은 manual의 camelCase 이름 또는 unique snake_case alias로 호출할 수 있다.
 
 ```python
 hub = TourApiHubClient.from_env()
@@ -60,44 +61,28 @@ hub.gocamping.based_list(facltNm="숲")
 hub.call("photo_gallery", "gallerySearchList1", galSearchKeyword="서울")
 ```
 
-## Required deliverables for behavior changes
+## 동작 변경 시 deliverable
 
-- Update `README.md` for user-facing API changes.
-- Update `krtourapi-api.md` for endpoint, parameter, response, or official-doc changes.
-- Update `docs/testing.md` when test policy changes.
-- Update `docs/troubleshooting.md` when adding a known fix.
-- Update `docs/repeated-mistakes.md` when preventing a recurring mistake.
-- Add offline tests before live tests.
-- Keep `CHANGELOG.md` current.
+- 사용자-facing API 변경은 `README.md`에 반영한다.
+- Endpoint, parameter, response, official-doc 변경은 `krtourapi-api.md`에 반영한다.
+- Test 정책 변경은 `docs/testing.md`에 반영한다.
+- Known fix는 `docs/troubleshooting.md`에 반영한다.
+- 반복 실수 방지는 `docs/repeated-mistakes.md`에 반영한다.
+- Live test보다 offline test를 먼저 추가한다.
+- `CHANGELOG.md`를 최신 상태로 유지한다.
 
-## Guardrails
+## Guardrail
 
-- Do not pass `sigunguCode` without `areaCode`.
-- Do not pass `cat2` without `cat1`, or `cat3` without `cat1` and `cat2`.
-- Do not pass `lDongSignguCd` without `lDongRegnCd`.
-- Do not pass `lclsSystm2` without `lclsSystm1`, or `lclsSystm3` without `lclsSystm1` and `lclsSystm2`.
-- Do not assume response timestamps are timezone-free; parse TourAPI timestamps as KST.
-- Do not crash on optional numeric fields. Use `None` when conversion is unsafe.
-- Do not expose raw `KeyError` or `TypeError`; convert response-shape issues into `TourApiParseError`.
+- `areaCode` 없이 `sigunguCode`를 전달하지 않는다.
+- `cat1` 없이 `cat2`, `cat1`/`cat2` 없이 `cat3`를 전달하지 않는다.
+- `lDongRegnCd` 없이 `lDongSignguCd`를 전달하지 않는다.
+- `lclsSystm1` 없이 `lclsSystm2`, `lclsSystm1`/`lclsSystm2` 없이 `lclsSystm3`를 전달하지 않는다.
+- TourAPI timestamp는 KST로 parsing한다.
+- Optional numeric field 변환이 불안전하면 `None`을 사용한다.
+- Raw `KeyError`/`TypeError`를 노출하지 말고 `TourApiParseError`로 바꾼다.
 
-## Testing requirements
+## Test 요구사항
 
-Default tests should cover:
+기본 test는 request parameter shape, common params(`serviceKey`, `MobileOS`, `MobileApp`, `_type=json`), result-code exception mapping, XML service-key error, `items.item` 단일/list, empty result, dependent parameter validation, Pydantic model conversion/serialization, CLI output, service catalog count/alias, generic Hub routing, Pythonic parameter alias conversion, public enum/type export, WGS84 coordinate normalization을 다룬다.
 
-- request parameter shape
-- common params (`serviceKey`, `MobileOS`, `MobileApp`, `_type=json`)
-- result-code exception mapping
-- XML service-key error mapping
-- `items.item` as single object and list
-- empty results
-- dependent parameter validation
-- Pydantic model conversion and serialization
-- CLI output serialization
-- service catalog count/aliases
-- generic Hub client routing
-- Pythonic parameter alias conversion
-- public enum/type exports
-- WGS84 coordinate normalization
-
-Live tests, if added, must be marked `live` and skip when `DATA_GO_KR_SERVICE_KEY` is absent.
-Use `scripts/run_live_tests.ps1` to load `.env.local`; do not hard-code keys in tests.
+Live test는 `live` marker를 붙이고 `DATA_GO_KR_SERVICE_KEY`가 없으면 skip한다. `scripts/run_live_tests.ps1`로 `.env.local`을 load하며 key를 test에 hard-code하지 않는다.
