@@ -57,7 +57,23 @@ line-length = 100
 target-version = "py311"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B"]
+select = ["E", "F", "W", "I", "N", "UP", "B", "A", "C4", "SIM", "TCH", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/visitkorea/client.py" = ["A002", "SIM108", "TC001", "TC002", "TC003"]
+"src/visitkorea/hub.py" = ["A002", "TC001", "TC002", "TC003"]
+"src/visitkorea/models.py" = ["A003", "N815", "TC001", "TC003"]
+"src/visitkorea/operation_schema.py" = ["TC001", "TC002", "TC003"]
+"src/visitkorea/services.py" = ["TC001", "TC002", "TC003"]
+"src/visitkorea/display.py" = ["TC001"]
+"src/visitkorea/_http.py" = ["TC001", "TC002", "TC003"]
+"src/visitkorea/_auth.py" = ["TC001", "TC002", "TC003"]
+"src/visitkorea/_pagination.py" = ["TC001", "TC003"]
+"src/visitkorea/_provenance.py" = ["TC003"]
+"src/visitkorea/_convert.py" = ["TC003"]
+"src/visitkorea/cli.py" = ["TC003"]
+"tests/**/*.py" = ["TC001", "TC002", "TC003", "RUF043"]
+"debug_ui/**/*.py" = ["TC001", "TC002", "TC003", "RUF005"]
 
 [tool.mypy]
 python_version = "3.11"
