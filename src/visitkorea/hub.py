@@ -57,7 +57,7 @@ class TourApiHubClient:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.retries = retries
-        self.session = cast(SessionLike, session or build_session(retries))
+        self.session = cast("SessionLike", session or build_session(retries))
         self._owns_session = session is None
 
     @classmethod
@@ -143,7 +143,7 @@ class TourApiHubClient:
     def related_tour(self) -> RelatedTourServiceClient:
         """Typed client for TarRlteTarService1 related-tour operations."""
 
-        return cast(RelatedTourServiceClient, self.service("related_tour"))
+        return cast("RelatedTourServiceClient", self.service("related_tour"))
 
     def call(
         self,
@@ -528,7 +528,7 @@ class AsyncTourApiHubClient:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.retries = retries
-        self.session = cast(AsyncSessionLike, session or build_async_session(retries))
+        self.session = cast("AsyncSessionLike", session or build_async_session(retries))
         self._owns_session = session is None
 
     @classmethod
@@ -604,7 +604,7 @@ class AsyncTourApiHubClient:
     def related_tour(self) -> AsyncRelatedTourServiceClient:
         """Async typed client for TarRlteTarService1 related-tour operations."""
 
-        return cast(AsyncRelatedTourServiceClient, self.service("related_tour"))
+        return cast("AsyncRelatedTourServiceClient", self.service("related_tour"))
 
     async def call(
         self,

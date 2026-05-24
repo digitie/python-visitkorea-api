@@ -86,7 +86,7 @@ class TourApiHttp:
         self.service_name = service_name.strip("/")
         self.mobile_os = mobile_os
         self.mobile_app = mobile_app
-        self.session = cast(SessionLike, session or build_session(retries))
+        self.session = cast("SessionLike", session or build_session(retries))
         self._owns_session = session is None
         self.timeout = timeout
 
@@ -150,7 +150,7 @@ class AsyncTourApiHttp:
         self.service_name = service_name.strip("/")
         self.mobile_os = mobile_os
         self.mobile_app = mobile_app
-        self.session = cast(AsyncSessionLike, session or build_async_session(retries))
+        self.session = cast("AsyncSessionLike", session or build_async_session(retries))
         self._owns_session = session is None
         self.timeout = timeout
 

@@ -502,7 +502,7 @@ if run_clicked:
     except TourApiError as exc:
         error = {"type": type(exc).__name__, "message": str(exc), "metadata": exc.metadata}
         trace.append(f"error={type(exc).__name__}")
-    except Exception as exc:  # noqa: BLE001 - debug UI must surface input/runtime issues.
+    except Exception as exc:
         error = {"type": type(exc).__name__, "message": str(exc)}
         trace.append(f"error={type(exc).__name__}")
     store_run_state(

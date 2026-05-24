@@ -104,7 +104,7 @@ def test_api_catalog_rows_include_dataset_name_and_key_links():
     assert kor_keyword["service_key_source"] == "data.go.kr"
     assert kor_keyword["service_key_apply_url"].startswith("https://www.data.go.kr/")
     assert kor_keyword["manual_url"].startswith("https://api.visitkorea.or.kr/")
-    assert kor_keyword["service_key_env_names"] == ["DATA_GO_KR_SERVICE_KEY"]
+    assert kor_keyword["service_key_env_names"] == ("DATA_GO_KR_SERVICE_KEY",)
 
     service_rows = get_service_catalog()
     assert len(service_rows) == 27

@@ -79,7 +79,7 @@ def _jsonable(value: Any) -> Any:
     if isinstance(value, BaseModel):
         return _jsonable(value.model_dump())
     if is_dataclass(value) and not isinstance(value, type):
-        return _jsonable(asdict(cast(Any, value)))
+        return _jsonable(asdict(cast("Any", value)))
     if isinstance(value, dict):
         return {key: _jsonable(item) for key, item in value.items()}
     if isinstance(value, (datetime, date)):
