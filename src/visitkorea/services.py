@@ -40,8 +40,8 @@ SERVICE_DEFINITIONS: Final[tuple[ServiceDefinition, ...]] = (
         title="한국관광공사_국문 관광정보 서비스",
         service_name="KorService2",
         operations=(
-            "areaCode2",
-            "categoryCode2",
+            "areaCode2",  # v4.4 매뉴얼 미기재, API는 정상 동작
+            "categoryCode2",  # v4.4 매뉴얼 미기재, API는 정상 동작
             "areaBasedList2",
             "locationBasedList2",
             "searchKeyword2",

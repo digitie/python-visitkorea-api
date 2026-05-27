@@ -461,7 +461,7 @@ def _raise_for_result_code(
     text = f"TourAPI returned {code}: {message}" if code else message
     text = _redact_secret(text, service_key)
     upper = text.upper()
-    if code in {"20", "30", "31"} or "SERVICE_KEY" in upper or "AUTH" in upper:
+    if code in {"20", "30", "31", "32"} or "SERVICE_KEY" in upper or "AUTH" in upper:
         raise TourApiAuthError(
             text,
             result_code=code or None,
