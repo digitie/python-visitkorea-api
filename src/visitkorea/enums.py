@@ -109,6 +109,91 @@ AREA_CODE_LABELS: Final[dict[str, str]] = {
     "39": "제주",
 }
 
+class LDongRegnCode(StrEnum):
+    """법정동 시도코드 (lDongRegnCd). areaCode와 다른 코드 체계."""
+
+    SEOUL = "11"
+    BUSAN = "26"
+    DAEGU = "27"
+    INCHEON = "28"
+    GWANGJU = "29"
+    DAEJEON = "30"
+    ULSAN = "31"
+    SEJONG = "36"
+    GYEONGGI = "41"
+    GANGWON = "51"
+    CHUNGBUK = "43"
+    CHUNGNAM = "44"
+    JEONBUK = "52"
+    JEONNAM = "46"
+    GYEONGBUK = "47"
+    GYEONGNAM = "48"
+    JEJU = "50"
+
+
+LDONG_REGN_LABELS: Final[dict[str, str]] = {
+    "11": "서울특별시",
+    "26": "부산광역시",
+    "27": "대구광역시",
+    "28": "인천광역시",
+    "29": "광주광역시",
+    "30": "대전광역시",
+    "31": "울산광역시",
+    "36": "세종특별자치시",
+    "41": "경기도",
+    "51": "강원특별자치도",
+    "43": "충청북도",
+    "44": "충청남도",
+    "52": "전북특별자치도",
+    "46": "전라남도",
+    "47": "경상북도",
+    "48": "경상남도",
+    "50": "제주특별자치도",
+}
+
+AREA_CODE_TO_LDONG: Final[dict[str, str]] = {
+    "1": "11",
+    "2": "28",
+    "3": "30",
+    "4": "27",
+    "5": "29",
+    "6": "26",
+    "7": "31",
+    "8": "36",
+    "31": "41",
+    "32": "51",
+    "33": "43",
+    "34": "44",
+    "35": "47",
+    "36": "48",
+    "37": "52",
+    "38": "46",
+    "39": "50",
+}
+
+LDONG_TO_AREA_CODE: Final[dict[str, str]] = {v: k for k, v in AREA_CODE_TO_LDONG.items()}
+
+
+CLASSIFICATION_SYSTEM_L1: Final[dict[str, str]] = {
+    "AC": "숙박",
+    "C01": "추천코스",
+    "EV": "축제/공연/행사",
+    "EX": "체험관광",
+    "FD": "음식",
+    "HS": "역사관광",
+    "LS": "레저스포츠",
+    "NA": "자연관광",
+    "SH": "쇼핑",
+    "VE": "문화관광",
+}
+
+
+def ldong_regn_label(value: str | LDongRegnCode | None) -> str | None:
+    if value is None:
+        return None
+    return LDONG_REGN_LABELS.get(str(value))
+
+
 SERVICE_NAME_BY_LANGUAGE: Final[dict[str, str]] = {
     "ko": "KorService2",
     "en": "EngService2",

@@ -138,6 +138,22 @@ def test_http_and_header_error_mapping(fake_client_factory):
     assert_error_metadata(exc_info.value, failure_kind="server", result_code="99")
 
 
+def test_unregistered_ip_error_maps_to_auth_error(fake_client_factory):
+    client, _session = fake_client_factory(
+        FakeResponse(
+            {
+                "response": {
+                    "header": {"resultCode": "32", "resultMsg": "UNREGISTERED_IP_ERROR"},
+                    "body": {},
+                }
+            }
+        )
+    )
+    with pytest.raises(TourApiAuthError) as exc_info:
+        client.area_codes()
+    assert_error_metadata(exc_info.value, failure_kind="auth", result_code="32")
+
+
 def test_malformed_items_shape_raises_parse_error(fake_client_factory):
     payload = tour_payload("not-a-dict")
     client, _session = fake_client_factory(FakeResponse(payload))

@@ -13,13 +13,18 @@ from ._auth import (
 from .client import AsyncKrTourApiClient, AsyncTourApiClient, KrTourApiClient, TourApiClient
 from .display import CopyrightDisplayInfo, clean_tourapi_html, copyright_display_info
 from .enums import (
+    AREA_CODE_TO_LDONG,
+    CLASSIFICATION_SYSTEM_L1,
+    LDONG_TO_AREA_CODE,
     AreaCode,
     Arrange,
     ContentType,
     Language,
+    LDongRegnCode,
     MobileOS,
     area_code_label,
     content_type_label,
+    ldong_regn_label,
 )
 from .exceptions import (
     TourApiAuthError,
@@ -84,6 +89,9 @@ from .types import (
 )
 
 __all__ = [
+    "AREA_CODE_TO_LDONG",
+    "CLASSIFICATION_SYSTEM_L1",
+    "LDONG_TO_AREA_CODE",
     "SERVICE_BY_KEY",
     "SERVICE_DEFINITIONS",
     "AreaCode",
@@ -108,6 +116,7 @@ __all__ = [
     "ImageInfo",
     "IntroInfo",
     "KrTourApiClient",
+    "LDongRegnCode",
     "Language",
     "LanguageInput",
     "LegalDongCodeValue",
@@ -149,6 +158,7 @@ __all__ = [
     "get_operation_parameters",
     "get_operation_schema",
     "get_service_catalog",
+    "ldong_regn_label",
     "normalize_service_key",
     "resolve_service_key",
     "service_key_env_names",

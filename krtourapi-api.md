@@ -1,6 +1,6 @@
 # TourAPI 구현 메모
 
-확인 기준일: 2026-04-30
+확인 기준일: 2026-05-27 (매뉴얼 v4.4 반영)
 
 ## 공식 근거
 
@@ -81,11 +81,10 @@ async client와 async Hub는 같은 규칙의 async iterator를 제공한다.
 - `AreaCode`: 국문 서비스 지역 코드
 - `ContentType`: 국문 서비스 content type 코드
 - `Arrange`, `MobileOS`
-- `PlaceCoordinate`: `kraddr.base`의 WGS84 경도/위도 객체
-- `Wgs84Coordinate`: 기존 호환용 `PlaceCoordinate` alias
+- `Wgs84Coordinate`: `visitkorea.models`의 WGS84 경도/위도 frozen Pydantic model
 - `ServiceKey`, `ContentId`, `DateInput`, `CoordinateInput`, `AreaCodeInput` 등 타입 alias
 
-위치 검색은 `kraddr.base.PlaceCoordinate(lat=..., lon=...)`를 직접 사용한다. TourAPI 원문 이름은 `mapX=lon`, `mapY=lat`로만 변환한다. 튜플 좌표는 `(latitude, longitude)` 또는 `(lat, lon)` 순서로 해석한다.
+위치 검색은 `Wgs84Coordinate(lat=..., lon=...)`를 직접 사용한다. TourAPI 원문 이름은 `mapX=lon`, `mapY=lat`로만 변환한다. 튜플 좌표는 `(latitude, longitude)` 또는 `(lat, lon)` 순서로 해석한다.
 
 ### 국문 contentTypeId
 
@@ -113,7 +112,82 @@ async client와 async Hub는 같은 규칙의 async iterator를 제공한다.
 | `R` | 대표 이미지 있는 항목 생성일순 |
 | `S` | 대표 이미지 있는 항목 거리순 |
 
+### 분류체계 코드 (lclsSystm)
+
+v4.4 매뉴얼에서 확인된 분류체계. `lclsSystmCode2` operation으로 조회 가능.
+
+| lclsSystm1 | 대분류명 |
+|---|---|
+| `AC` | 숙박 |
+| `C01` | 추천코스 |
+| `EV` | 축제/공연/행사 |
+| `EX` | 체험관광 |
+| `FD` | 음식 |
+| `HS` | 역사관광 |
+| `LS` | 레저스포츠 |
+| `NA` | 자연관광 |
+| `SH` | 쇼핑 |
+| `VE` | 문화관광 |
+
+중분류 60개, 소분류 242개는 별도 엑셀 참조 (`.manuals/분류체계_관광타입맵핑.xlsx`).
+각 소분류는 `contentTypeId` (12, 14, 15, 25, 28, 32, 38, 39)와 매핑된다.
+
+코드에서는 `CLASSIFICATION_SYSTEM_L1` dict와 `lclsSystmCode2` operation으로 접근한다.
+
+### 법정동 코드 (lDongRegnCd / lDongSignguCd)
+
+v4.4 매뉴얼에서 확인된 법정동 시도코드. `ldongCode2` operation으로 조회 가능.
+
+**주의: `areaCode`와 `lDongRegnCd`는 다른 코드 체계다.**
+
+| lDongRegnCd | 시도명 | areaCode |
+|---|---|---|
+| `11` | 서울특별시 | `1` |
+| `26` | 부산광역시 | `6` |
+| `27` | 대구광역시 | `4` |
+| `28` | 인천광역시 | `2` |
+| `29` | 광주광역시 | `5` |
+| `30` | 대전광역시 | `3` |
+| `31` | 울산광역시 | `7` |
+| `36` | 세종특별자치시 | `8` |
+| `41` | 경기도 | `31` |
+| `51` | 강원특별자치도 | `32` |
+| `43` | 충청북도 | `33` |
+| `44` | 충청남도 | `34` |
+| `52` | 전북특별자치도 | `37` |
+| `46` | 전라남도 | `38` |
+| `47` | 경상북도 | `35` |
+| `48` | 경상남도 | `36` |
+| `50` | 제주특별자치도 | `39` |
+
+코드에서는 `LDongRegnCode` enum, `AREA_CODE_TO_LDONG` / `LDONG_TO_AREA_CODE` 매핑 dict, `ldong_regn_label()` 함수로 접근한다.
+
+`ldongCode2`의 `lDongListYn` 파라미터에 따라 응답 구조가 달라진다:
+- `N` (기본): `code`, `name`, `rnum` 반환 — 시도 또는 시군구 코드 조회
+- `Y`: `lDongRegnCd`, `lDongRegnNm`, `lDongSignguCd`, `lDongSignguNm`, `rnum` 반환 — 전체 목록
+
+### 에러코드 (공공데이터포털)
+
+| 코드 | 메시지 | 설명 | visitkorea 매핑 |
+|---|---|---|---|
+| `00` | `NORMAL_CODE` | 정상 | 성공 처리 |
+| `01` | `APPLICATION_ERROR` | 어플리케이션 에러 | `TourApiRequestError` |
+| `02` | `DB_ERROR` | 데이터베이스 에러 | `TourApiRequestError` |
+| `03` | `NODATA_ERROR` | 데이터 없음 | 빈 `Page` 또는 `TourApiNoDataError` |
+| `04` | `HTTP_ERROR` | HTTP 에러 | `TourApiServerError` |
+| `10` | `INVALID_REQUEST_PARAMETER_ERROR` | 잘못된 요청 파라미터 | `TourApiRequestError` |
+| `11` | `NO_MANDATORY_REQUEST_PARAMETERS_ERROR` | 필수 요청 파라미터 누락 | `TourApiRequestError` |
+| `12` | `NO_OPENAPI_SERVICE_ERROR` | 서비스 없음/폐기 | `TourApiRequestError` |
+| `20` | `SERVICE_ACCESS_DENIED_ERROR` | 서비스 접근 거부 | `TourApiAuthError` |
+| `22` | `LIMITED_NUMBER_OF_SERVICE_REQUESTS_EXCEEDS_ERROR` | 호출 한도 초과 | `TourApiRateLimitError` |
+| `30` | `SERVICE_KEY_IS_NOT_REGISTERED_ERROR` | 미등록 서비스키 | `TourApiAuthError` |
+| `31` | `DEADLINE_HAS_EXPIRED_ERROR` | 활용 기간 만료 | `TourApiAuthError` |
+| `32` | `UNREGISTERED_IP_ERROR` | 미등록 IP | `TourApiAuthError` |
+| `99` | `UNKNOWN_ERROR` | 기타 에러 | `TourApiServerError` |
+
 ## 의존성 검증
+
+v4.4 매뉴얼에서 `areaCode2`와 `categoryCode2` operation이 목록에서 제외되었다. 새 분류체계(`ldongCode2`, `lclsSystmCode2`)로 대체된 것으로 보이나, API 엔드포인트는 여전히 정상 동작한다. `visitkorea`는 하위 호환성을 위해 두 operation을 계속 제공한다.
 
 기존 `areaCode`, `sigunguCode`, `cat1/2/3`는 공식 문서에서 삭제 예정 또는 대체 예정으로 표시되는 항목이 있다. 하지만 운영 호환성을 위해 여전히 전달할 수 있게 두되, 하위 코드만 단독으로 들어가는 실수는 막는다.
 
