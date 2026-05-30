@@ -2,23 +2,39 @@
 
 ## 문서 언어 정책
 
-이 저장소의 모든 Markdown/RST 문서는 한글로 작성한다. 공식 API 필드명, 코드 식별자, 명령어, URL, 제공자 원문처럼 그대로 보존해야 하는 값만 영어를 유지한다. 새 문서나 기존 문서를 수정할 때도 이 규칙을 우선한다.
+이 저장소의 **모든 Markdown/RST 문서는 한글로 작성한다**. 예외 없음. `README.md`, `AGENTS.md`, `krtourapi-api.md`, `docs/*`도 본문은 한글이다.
+
+다음 항목만 영어를 유지한다 — 한글로 옮기면 의미가 변하거나 정확성이 깨지기 때문:
+- **코드 식별자**: 함수/클래스/메서드/변수/타입/모듈 이름 (`KrTourApiClient`, `TourApiHubClient`, `PlaceCoordinate`, `ContentId`).
+- **명령어와 경로**: `python -m pytest`, `ruff check .`, `f:\dev\python-visitkorea-api\src`.
+- **외부 공식 용어**: TourAPI, KorService2, Pydantic, httpx, data.go.kr, XML/JSON, DTO.
+- **표준 keyword**: ADR, CHANGELOG, ISO 8601 날짜, semver 라벨.
+- **shell 출력 / 로그 예시**: 그대로 캡처한 문자열은 보존.
+
+설명 문장, 절제목, 표 column 헤더, ADR 본문, 빠른 시작 가이드, 일지 항목은 한글로 적는다. 새 문서를 만들 때 영문 초안을 두지 않는다 — 처음부터 한글로 쓴다.
 
 ## 역할
 
-이 저장소(GitHub 이름 `python-visitkorea-api`, Python 패키지 `visitkorea`)는 한국관광공사 TourAPI(data.go.kr 공개 API) 전체를 커버하는 **Python client library**다. api.visitkorea.or.kr의 27개 서비스 카탈로그를 기반으로 typed client(`KrTourApiClient`)와 generic hub client(`TourApiHubClient`)를 제공한다.
+이 저장소(GitHub 이름 `python-visitkorea-api`, Python 패키지 `visitkorea`)는 한국관광공사 TourAPI(data.go.kr 공개 API) 전체를 커버하는 **Python 클라이언트 라이브러리**다. api.visitkorea.or.kr의 27개 서비스 카탈로그를 기반으로 typed client(`KrTourApiClient`)와 generic hub client(`TourApiHubClient`)를 제공한다.
 
 ## 식별자 (혼동 방지)
 
 | 항목 | 값 |
 |------|----|
 | GitHub 저장소 이름 | `python-visitkorea-api` |
-| Python import | `from visitkorea import ...` |
+| Python import 경로 | `from visitkorea import ...` |
 | CLI 명령 | `visitkorea` |
 | 환경변수 prefix | `DATA_GO_KR_*`, `VISITKOREA_API_*` |
 | 기본 base URL | `http://apis.data.go.kr/B551011` |
 | 기본 서비스 | `KorService2` |
 | 디버그 UI | `debug_ui/app.py` (Streamlit) |
+
+## 개발 환경 정책
+
+PC 개발은 Windows 호스트에서 직접 진행한다.
+- **안정적 public API**: 외부 API 작업을 시작하기 전에 "Direct public API rule"을 최우선으로 적용한다. 공급자 전용 wrapper, adapter, 또는 gateway 레이어를 별도로 만들지 않고, 직접 호출할 수 있는 안정적인 public client, typed model, enum, helper를 제공한다.
+- **에이전트별 고정 worktree**: ChatGPT Codex는 `F:\dev\vw-codex`, Claude Code는 `F:\dev\vw-claude`, Google Antigravity 2.0은 `F:\dev\python-visitkorea-api`를 사용한다. 작업마다 브랜치만 새로 만들고, CodeGraph는 worktree마다 1회 `codegraph init -i` 후 `codegraph sync`로 유지한다.
+- **로컬 검증 실행**: 본 저장소는 GitHub CI/CD에 과도하게 의존하지 않으며, 작업자가 머지 전에 로컬 품질 게이트를 실행해 모든 검증 명령이 통과하는지 직접 확인한다.
 
 ## 지시 우선순위
 
@@ -31,7 +47,7 @@
 7. 기존 코드와 테스트
 8. 최소한의, 되돌릴 수 있는 가정
 
-## Module ownership
+## 모듈 소유권
 
 ```text
 src/visitkorea/
@@ -101,18 +117,18 @@ src/visitkorea/
 | `resultCode` | TourAPI 응답 코드 (0000=성공, 03=데이터 없음, 20/30/31=인증오류) |
 | `KorService2` | 국문 관광정보 서비스 (기본 서비스) |
 
-## Test policy
+## 테스트 정책
 
-- 기본 테스트는 offline이어야 한다 (실제 API 호출 금지).
-- HTTP 동작에는 `FakeSession`/`FakeAsyncSession`을 사용한다.
-- Live test에는 `@pytest.mark.live`와 `DATA_GO_KR_SERVICE_KEY`가 필요하다.
-- 불안정한 실제 관광 데이터 값을 assert하지 말고 shape과 type만 assert한다.
+- 기본 테스트는 **오프라인(offline)**이어야 한다 (실제 API 호출 금지).
+- HTTP 동작에는 `FakeSession`/`FakeAsyncSession` 또는 `httpx.MockTransport`를 사용한다.
+- 라이브 테스트(Live test)에는 `@pytest.mark.live`와 `DATA_GO_KR_SERVICE_KEY`가 필요하다.
+- 불안정한 실제 관광 데이터 값을 assert하지 말고, 형태(shape)와 타입(type)만 assert한다.
 - `TourApiHubClient` 테스트는 catalog-driven으로 유지하고 기본 테스트에서 실제 27개 서비스를 호출하지 않는다.
-- Coordinate 테스트는 `PlaceCoordinate` WGS84 `lon`/`lat`와 TourAPI `mapX`/`mapY` 차이를 명시한다.
+- 좌표(Coordinate) 테스트는 `PlaceCoordinate` WGS84 `lon`/`lat`와 TourAPI `mapX`/`mapY` 차이를 명시한다.
 
 ## 작업 후 체크리스트
 
-- [ ] `python -m pytest -q` 통과
+- [ ] `python -m pytest -q` 통과 (오프라인 테스트 전부 성공)
 - [ ] `ruff check .` / `mypy src/visitkorea` 통과
 - [ ] 실수를 고쳤다면 `docs/repeated-mistakes.md`에 기록
 - [ ] 사용자 가시 변경이면 `CHANGELOG.md` 갱신
@@ -128,6 +144,6 @@ ruff check .
 mypy src/visitkorea
 ```
 
-## Documentation policy
+## 문서화 정책
 
-실수를 고쳤다면 `docs/repeated-mistakes.md`에 symptom, cause, rule, guardrail test를 추가한다.
+실수를 고쳤다면 반드시 `docs/repeated-mistakes.md`에 **증상(symptom)**, **원인(cause)**, **규칙(rule)**, **가드레일 테스트(guardrail test)**를 추가 또는 업데이트한다.
