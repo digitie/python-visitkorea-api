@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.2.0 - 2026-05-31
+
 - HTTP 재시도/지수 백오프(jitter)와 `Retry-After` 지원을 추가했다(동기·비동기). `max_retries`로 opt-in이며 기본값 0이라 기존 오류 동작은 유지된다.
 - 클라이언트 측 요청 제한 `TokenBucketRateLimiter`/`RateLimiter`(`rate_limiter=`), 코드 조회 캐시(`code_cache=`), `httpx.Timeout` 세분화 타임아웃, `visitkorea.http` DEBUG 로깅을 추가했다.
 - `detail_pet_tour()` typed method와 `PetTourInfo` model(`detailPetTour2`), `IntroInfo`의 콘텐츠타입 공통 intro 접근자를 추가했다.
