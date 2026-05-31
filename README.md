@@ -261,7 +261,10 @@ page = client.area_based_list(
 - `Language`, `MobileOS`, `Arrange`
 - `AreaCode`, `ContentType`
 - `PlaceCoordinate`, `Wgs84Coordinate` (`PlaceCoordinate` alias)
-- `RelatedTourItem`
+- `RelatedTourItem`, `PetTourInfo`
+- `GoCampingItem`, `DurunubiCourseItem`, `DataLabVisitorItem`, `OdiiItem`, `MedicalTourItem`, `WellnessTourItem`
+- `TypedServiceView`, `AsyncTypedServiceView`
+- `RateLimiter`, `TokenBucketRateLimiter`
 - `CopyrightDisplayInfo`, `copyright_display_info`, `clean_tourapi_html`
 - `ServiceKey`, `ContentId`, `DateInput`, `CoordinateInput`, `AreaCodeInput`
 

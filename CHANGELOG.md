@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- HTTP 재시도/지수 백오프(jitter)와 `Retry-After` 지원을 추가했다(동기·비동기). `max_retries`로 opt-in이며 기본값 0이라 기존 오류 동작은 유지된다.
+- 클라이언트 측 요청 제한 `TokenBucketRateLimiter`/`RateLimiter`(`rate_limiter=`), 코드 조회 캐시(`code_cache=`), `httpx.Timeout` 세분화 타임아웃, `visitkorea.http` DEBUG 로깅을 추가했다.
+- `detail_pet_tour()` typed method와 `PetTourInfo` model(`detailPetTour2`), `IntroInfo`의 콘텐츠타입 공통 intro 접근자를 추가했다.
+- CLI에 `pet-detail`/`festival`/`stay`/`area-based`/`catalog` 명령을 추가했다.
+- Hub 서비스 클라이언트의 `.typed` 뷰와 서비스별 typed model(`GoCampingItem`, `DurunubiCourseItem`, `DataLabVisitorItem`, `OdiiItem`, `MedicalTourItem`, `WellnessTourItem`)을 추가했다.
 - 내부 HTTP layer를 `httpx`로 교체하고 asyncio application용 `AsyncKrTourApiClient`/`AsyncTourApiHubClient`를 추가했다.
 - 설치, 인증, typed client 사용, Hub 사용, Pydantic model, coordinate normalization, exception, CLI, test 문서를 확장했다.
 - 기본 사용 guide로 `docs/user-guide.md`를 추가했다.
