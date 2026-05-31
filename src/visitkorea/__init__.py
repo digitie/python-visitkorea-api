@@ -11,6 +11,7 @@ from ._auth import (
     service_key_sources,
 )
 from ._ratelimit import RateLimiter, TokenBucketRateLimiter
+from ._service_views import AsyncTypedServiceView, TypedServiceView
 from .client import AsyncKrTourApiClient, AsyncTourApiClient, KrTourApiClient, TourApiClient
 from .display import CopyrightDisplayInfo, clean_tourapi_html, copyright_display_info
 from .enums import (
@@ -65,6 +66,14 @@ from .operation_schema import (
     get_operation_parameters,
     get_operation_schema,
 )
+from .service_models import (
+    DataLabVisitorItem,
+    DurunubiCourseItem,
+    GoCampingItem,
+    MedicalTourItem,
+    OdiiItem,
+    WellnessTourItem,
+)
 from .services import (
     SERVICE_BY_KEY,
     SERVICE_DEFINITIONS,
@@ -106,6 +115,7 @@ __all__ = [
     "AsyncTourApiClient",
     "AsyncTourApiHubClient",
     "AsyncTourApiServiceClient",
+    "AsyncTypedServiceView",
     "CategoryCodeValue",
     "ClassificationCodeValue",
     "CodeItem",
@@ -114,7 +124,10 @@ __all__ = [
     "ContentTypeInput",
     "CoordinateInput",
     "CopyrightDisplayInfo",
+    "DataLabVisitorItem",
     "DateInput",
+    "DurunubiCourseItem",
+    "GoCampingItem",
     "ImageInfo",
     "IntroInfo",
     "KrTourApiClient",
@@ -122,8 +135,10 @@ __all__ = [
     "Language",
     "LanguageInput",
     "LegalDongCodeValue",
+    "MedicalTourItem",
     "MobileOS",
     "MobileOSInput",
+    "OdiiItem",
     "OperationParameter",
     "OperationSchema",
     "Page",
@@ -153,6 +168,8 @@ __all__ = [
     "TourApiServiceClient",
     "TourDetail",
     "TourItem",
+    "TypedServiceView",
+    "WellnessTourItem",
     "Wgs84Coordinate",
     "YnInput",
     "area_code_label",
