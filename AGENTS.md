@@ -6,7 +6,7 @@
 
 다음 항목만 영어를 유지한다 — 한글로 옮기면 의미가 변하거나 정확성이 깨지기 때문:
 - **코드 식별자**: 함수/클래스/메서드/변수/타입/모듈 이름 (`KrTourApiClient`, `TourApiHubClient`, `PlaceCoordinate`, `ContentId`).
-- **명령어와 경로**: `python -m pytest`, `ruff check .`, `f:\dev\python-visitkorea-api\src`.
+- **명령어와 경로**: `python -m pytest`, `ruff check .`, `src/visitkorea`.
 - **외부 공식 용어**: TourAPI, KorService2, Pydantic, httpx, data.go.kr, XML/JSON, DTO.
 - **표준 keyword**: ADR, CHANGELOG, ISO 8601 날짜, semver 라벨.
 - **shell 출력 / 로그 예시**: 그대로 캡처한 문자열은 보존.
@@ -33,7 +33,7 @@
 
 PC 개발은 Windows 호스트에서 직접 진행한다.
 - **안정적 public API**: 외부 API 작업을 시작하기 전에 "Direct public API rule"을 최우선으로 적용한다. 공급자 전용 wrapper, adapter, 또는 gateway 레이어를 별도로 만들지 않고, 직접 호출할 수 있는 안정적인 public client, typed model, enum, helper를 제공한다.
-- **에이전트별 고정 worktree**: ChatGPT Codex는 `F:\dev\vw-codex`, Claude Code는 `F:\dev\vw-claude`, Google Antigravity 2.0은 `F:\dev\python-visitkorea-api`를 사용한다. 작업마다 브랜치만 새로 만들고, CodeGraph는 worktree마다 1회 `codegraph init -i` 후 `codegraph sync`로 유지한다.
+- **에이전트별 고정 worktree**: ChatGPT Codex는 `python-visitkorea-api-codex` worktree, Claude Code는 `vw-claude` worktree, Google Antigravity 2.0은 `python-visitkorea-api` worktree를 사용한다. 작업마다 브랜치만 새로 만들고, CodeGraph는 worktree마다 1회 `codegraph init -i` 후 `codegraph sync`로 유지한다.
 - **로컬 검증 실행**: 본 저장소는 GitHub CI/CD에 과도하게 의존하지 않으며, 작업자가 머지 전에 로컬 품질 게이트를 실행해 모든 검증 명령이 통과하는지 직접 확인한다.
 
 ## 지시 우선순위
