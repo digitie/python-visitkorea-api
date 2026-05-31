@@ -60,7 +60,10 @@ def test_typed_service_view_iter_pages_and_unregistered_service():
         [
             FakeResponse(
                 tour_payload(
-                    [{"crsIdx": "1", "crsKorNm": "둘레길A"}, {"crsIdx": "2", "crsKorNm": "둘레길B"}],
+                    [
+                        {"crsIdx": "1", "crsKorNm": "둘레길A"},
+                        {"crsIdx": "2", "crsKorNm": "둘레길B"},
+                    ],
                     page_no=1,
                     num_of_rows=2,
                     total_count=3,
