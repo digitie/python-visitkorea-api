@@ -27,7 +27,7 @@ def _gocamping_item(row: Mapping[str, Any]) -> GoCampingItem:
     return GoCampingItem(
         content_id=strip_or_none(row.get("contentId")),
         facility_name=strip_or_none(row.get("facltNm")),
-        line_intro=strip_or_none(row.get("lineIntro")),
+        line_intro=strip_or_none(row.get("intro") or row.get("lineIntro")),
         induty=strip_or_none(row.get("induty")),
         do_name=strip_or_none(row.get("doNm")),
         sigungu_name=strip_or_none(row.get("sigunguNm")),
