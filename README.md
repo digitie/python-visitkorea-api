@@ -279,6 +279,25 @@ client = KrTourApiClient.from_env(language="en")  # EngService2
 
 모든 `TourApiError` 계열 예외는 기존 `except TourApiAuthError` 같은 catch 동작을 유지하면서 `result_code`, `status_code`, `endpoint`, `service_name`, `failure_kind` metadata를 제공합니다. 관리자 로그에는 `exc.metadata`를 남기고, 사용자 메시지는 `failure_kind`로 분기할 수 있습니다. `serviceKey` 원문은 예외 문자열, `repr`, metadata에 포함하지 않습니다.
 
+## 서비스별 typed Hub 모델
+
+Hub 서비스 클라이언트의 `.typed` 뷰는 원문 row를 서비스별 typed 모델로 파싱해 `Page[모델]`로 돌려줍니다. 모델링하지 않은 필드는 `raw`에 그대로 보존됩니다.
+
+```python
+from visitkorea import TourApiHubClient
+
+hub = TourApiHubClient.from_env()
+
+camping = hub.gocamping.typed.based_list(facltNm="숲")        # Page[GoCampingItem]
+courses = hub.durunubi.typed.course_list()                    # Page[DurunubiCourseItem]
+visitors = hub.datalab.typed.call("metcoRegnVisitrDDList", base_ym="202605")
+
+for page in hub.gocamping.typed.iter_pages("basedList", num_of_rows=100, max_pages=10):
+    store(page.items)
+```
+
+typed 모델이 등록된 서비스: `gocamping`(`GoCampingItem`), `durunubi`(`DurunubiCourseItem`), `datalab`(`DataLabVisitorItem`), `odii`(`OdiiItem`), `medical`(`MedicalTourItem`), `wellness`(`WellnessTourItem`). 등록되지 않은 서비스의 `.typed`는 `TourApiRequestError`를 냅니다(기존 generic 호출은 계속 `Page[Mapping]`을 반환). typed 필드명은 매뉴얼 기준으로 매핑했으며, 안정성 확인 전까지 `raw`가 단일 기준입니다.
+
 ## CLI
 
 ```bash
