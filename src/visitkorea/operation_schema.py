@@ -150,7 +150,9 @@ def _operation_family(service_id: str, operation: str) -> str:
         return "image_detail"
     if "detailintro" in lowered:
         return "intro_detail"
-    if "detailinfo" in lowered or "detailmdcltursm" in lowered or "detailpettour" in lowered:
+    if "detailpettour" in lowered:
+        return "pet_detail"
+    if "detailinfo" in lowered or "detailmdcltursm" in lowered:
         return "structured_detail"
     if "detailcommon" in lowered or lowered.startswith("gallerydetail"):
         return "common_detail"
@@ -245,6 +247,12 @@ def _operation_copy(
             "Structured detail lookup.",
             "Fetch repeat/detail fields for one content item. The returned raw fields vary "
             "by content type and service.",
+        )
+    if family == "pet_detail":
+        return (
+            "Pet-companion detail lookup.",
+            "Use content_id to fetch pet-companion travel fields. detailPetTour2 only needs "
+            "the content ID and does not take a content type.",
         )
     if family == "image_detail":
         return (
@@ -374,7 +382,7 @@ def _parameters_for_operation(
             _arrange(default=Arrange.MODIFIED_WITH_IMAGE.value),
             _date("modified_time", "modifiedtime", "Modified date"),
         )
-    if family == "common_detail":
+    if family in {"common_detail", "pet_detail"}:
         return (_text("content_id", "contentId", "Content ID", required=True),)
     if family in {"intro_detail", "structured_detail"}:
         return (
