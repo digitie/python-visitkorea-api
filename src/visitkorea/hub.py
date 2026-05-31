@@ -25,6 +25,11 @@ from ._http import (
 from ._pagination import async_iter_paginated_pages, iter_paginated_pages
 from ._provenance import call_context
 from ._ratelimit import RateLimiter
+from ._service_views import (
+    AsyncTypedServiceView,
+    TypedServiceView,
+    require_item_parser,
+)
 from .client import DEFAULT_BASE_URL, DEFAULT_ENV_NAMES, _extract_items
 from .enums import MobileOS
 from .exceptions import TourApiAuthError, TourApiRequestError
@@ -322,6 +327,12 @@ class TourApiServiceClient:
             max_pages=max_pages,
             max_items=max_items,
         )
+
+    @property
+    def typed(self) -> TypedServiceView:
+        """Return a view whose operations parse rows into this service's typed model."""
+
+        return TypedServiceView(self, require_item_parser(self.definition.key))
 
     def __getattr__(self, name: str) -> Callable[..., Page[RawRecord]]:
         if name.startswith("_"):
@@ -805,6 +816,12 @@ class AsyncTourApiServiceClient:
             max_items=max_items,
         ):
             yield page
+
+    @property
+    def typed(self) -> AsyncTypedServiceView:
+        """Return a view whose operations parse rows into this service's typed model."""
+
+        return AsyncTypedServiceView(self, require_item_parser(self.definition.key))
 
     def __getattr__(self, name: str) -> Callable[..., Any]:
         if name.startswith("_"):
