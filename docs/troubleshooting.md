@@ -49,6 +49,31 @@ TourAPI는 `_type=json` 요청에도 인증키/권한 오류를 XML로 돌려줄
 - `visitkorea` 기본 세션은 브라우저 호환 User-Agent를 설정한다. 커스텀 session을 넘길 때도 User-Agent를 지정한다.
 - live test에서는 미신청 서비스의 403을 `TourApiAuthError` 매핑 검증에 사용한다.
 
+## 호출이 자주 실패하거나 느림 (일시적 5xx)
+
+게이트웨이의 일시적 HTTP 429/5xx는 `max_retries`로 재시도할 수 있다. 기본값은 `0`이라 기존 오류 동작이 그대로 유지되며, 켜면 지수 백오프(jitter)로 재시도하고 응답에 `Retry-After`가 있으면 우선한다.
+
+```python
+client = KrTourApiClient.from_env(max_retries=3, backoff_factor=0.5, max_backoff=20.0)
+```
+
+읽기 지연이 잦으면 `timeout`에 `httpx.Timeout(connect=..., read=...)`을 넘겨 세분화한다. 요청 흐름은 `logging.getLogger("visitkorea.http")`를 DEBUG로 켜면 serviceKey 없이 endpoint와 상태 코드가 남는다.
+
+## 호출 한도 초과 (`resultCode 22` / HTTP 429)
+
+`TourApiRateLimitError`(`failure_kind="rate_limit"`)로 매핑된다. 호출량을 줄이려면 클라이언트 측 `TokenBucketRateLimiter`로 속도를 제한하고, 거의 정적인 코드 조회는 `code_cache`로 중복 호출을 없앤다.
+
+```python
+from visitkorea import KrTourApiClient, TokenBucketRateLimiter
+
+client = KrTourApiClient.from_env(
+    rate_limiter=TokenBucketRateLimiter(rate=5, per=1.0),
+    code_cache={},
+)
+```
+
+일일 쿼터 자체가 초과된 경우는 재시도로 해결되지 않으므로 공공데이터포털에서 활용 한도를 확인한다.
+
 ## `radius must be between 1 and 20000 meters`
 
 `locationBasedList2`의 반경은 공식 문서 기준 최대 20km다. 더 넓은 검색이 필요하면 행정구역 기반 조회와 후처리를 사용한다.
