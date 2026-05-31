@@ -102,6 +102,7 @@ async with AsyncKrTourApiClient.from_env(mobile_app="my-travel-app") as client:
 | `detail_intro()` | `detailIntro2` | content type별 소개정보 |
 | `detail_info()` | `detailInfo2` | 반복 상세정보 |
 | `detail_images()` | `detailImage2` | 이미지 목록 |
+| `detail_pet_tour()` | `detailPetTour2` | 반려동물 동반 상세 (`Page[PetTourInfo]`) |
 | `area_based_sync_list()` | `areaBasedSyncList2` | 동기화 목록 |
 | `area_codes()` | `areaCode2` | 지역/시군구 코드 |
 | `category_codes()` | `categoryCode2` | 대/중/소분류 코드 |
@@ -255,6 +256,38 @@ Python식 파라미터 alias:
 
 서비스 key와 operation 전체 목록은 [docs/openapi-catalog.md](openapi-catalog.md)에 있습니다.
 
+## 서비스별 typed Hub 모델
+
+Hub 서비스의 `.typed` 뷰는 generic 응답 row를 서비스별 typed 모델로 파싱해 `Page[모델]`로 돌려줍니다. 기존 generic 호출(`hub.gocamping.based_list(...)`)은 그대로 `Page[Mapping]`을 반환합니다.
+
+```python
+camping = hub.gocamping.typed.based_list(facltNm="숲")        # Page[GoCampingItem]
+courses = hub.durunubi.typed.course_list()                    # Page[DurunubiCourseItem]
+visitors = hub.datalab.typed.call("metcoRegnVisitrDDList", base_ym="202605")
+
+for page in hub.gocamping.typed.iter_pages("basedList", num_of_rows=100, max_pages=10):
+    store(page.items)
+```
+
+typed 모델이 등록된 서비스: `gocamping`(`GoCampingItem`), `durunubi`(`DurunubiCourseItem`), `datalab`(`DataLabVisitorItem`), `odii`(`OdiiItem`), `medical`(`MedicalTourItem`), `wellness`(`WellnessTourItem`). 등록되지 않은 서비스의 `.typed`는 `TourApiRequestError`를 냅니다. typed 필드명은 매뉴얼 기준이며, 안정성 확인 전까지 `raw`가 단일 기준입니다.
+
+## 재시도, 쿼터, 타임아웃, 캐시
+
+TourAPI 게이트웨이는 일시적인 HTTP 429/5xx를 반환할 수 있습니다. 기본값은 상태 코드 재시도를 하지 않지만(기존 동작 유지) `max_retries`로 켤 수 있습니다. 재시도는 지수 백오프(jitter)로 동작하며 응답에 `Retry-After`가 있으면 우선합니다.
+
+```python
+from visitkorea import KrTourApiClient, TokenBucketRateLimiter
+
+client = KrTourApiClient.from_env(
+    max_retries=3,                                          # 429/5xx, 일시적 연결 오류 재시도
+    backoff_factor=0.5,                                     # 0.5, 1.0, 2.0초 ... (max_backoff 상한)
+    rate_limiter=TokenBucketRateLimiter(rate=5, per=1.0),  # 초당 5회 제한
+    code_cache={},                                          # area/ldong/lcls/category 코드 캐시
+)
+```
+
+`rate_limiter`는 동기/비동기, typed/Hub 클라이언트에서 모두 동작합니다. `timeout`은 `float` 또는 `httpx.Timeout`을 받습니다. 요청 로그는 `logging.getLogger("visitkorea.http")`에서 DEBUG 레벨로 확인할 수 있고 serviceKey는 남지 않습니다.
+
 ## 페이지 반복
 
 `Page.has_next_page`와 `Page.next_page_no`는 `total_count`, `page_no`, `num_of_rows`를 기준으로 다음 페이지 여부를 계산합니다. 코드 캐시나 후보 조회처럼 여러 페이지를 읽어야 하는 흐름에서는 `iter_pages()`를 사용할 수 있습니다.
@@ -368,7 +401,12 @@ except TourApiError as exc:
 visitkorea keyword 경복궁 --content-type-id 12
 visitkorea location --map-x 126.9769 --map-y 37.5796 --radius 1000
 visitkorea detail 126508
+visitkorea pet-detail 126508
+visitkorea festival 20260501 --area-code 1
+visitkorea stay --area-code 1
+visitkorea area-based --content-type-id 12 --area-code 1
 visitkorea area-codes
+visitkorea catalog
 ```
 
 CLI 출력은 Pydantic 모델을 `model_dump()`한 뒤 JSON으로 직렬화합니다.
