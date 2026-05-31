@@ -347,6 +347,8 @@ def test_operation_schema_covers_catalog_families_and_errors():
         ("kor", "detailCommon2", "common_detail"),
         ("kor", "detailIntro2", "intro_detail"),
         ("kor", "detailInfo2", "structured_detail"),
+        ("kor", "detailPetTour2", "pet_detail"),
+        ("pet", "detailPetTour2", "pet_detail"),
         ("kor", "detailImage2", "image_detail"),
         ("kor", "areaBasedSyncList2", "sync_list"),
         ("photo_gallery", "gallerySearchList1", "gallery_search"),
@@ -369,6 +371,8 @@ def test_operation_schema_covers_catalog_families_and_errors():
         assert schema.parameters
         if expected_family == "generic":
             assert schema.parameters[0].name == "service_specific"
+        if expected_family == "pet_detail":
+            assert [p.name for p in schema.parameters] == ["content_id"]
 
     with pytest.raises(TourApiRequestError, match="unknown TourAPI service"):
         get_operation_schema("missing", "areaCode2")
