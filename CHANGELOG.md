@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- `GoCampingItem.line_intro`가 실제 응답 필드 `intro`를 읽도록 수정했다(기존 `lineIntro`는 응답에 없어 항상 None이었다). 실 API 응답으로 검증.
+- 디버그 UI에 typed 모델 등록 서비스용 'typed 모델로 파싱' 옵션을 추가했다(`.typed` 뷰 호출).
+
 ## 0.2.0 - 2026-05-31
 
 - HTTP 재시도/지수 백오프(jitter)와 `Retry-After` 지원을 추가했다(동기·비동기). `max_retries`로 opt-in이며 기본값 0이라 기존 오류 동작은 유지된다.

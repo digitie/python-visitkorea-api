@@ -20,6 +20,13 @@ from visitkorea import (
     service_key_env_names,
     service_key_sources,
 )
+from visitkorea._service_views import SERVICE_ITEM_PARSERS
+
+
+def service_supports_typed(service_id: str) -> bool:
+    """Return whether a service has a registered typed model for the .typed view."""
+
+    return service_id in SERVICE_ITEM_PARSERS
 
 
 def jsonable(value: Any) -> Any:
@@ -457,6 +464,14 @@ with st.form("request_form"):
         max_value=120.0,
         value=10.0,
     )
+    if service_supports_typed(selected_service_id):
+        use_typed = option_col.checkbox(
+            "typed 모델로 파싱",
+            value=False,
+            help="이 서비스의 .typed 뷰로 응답을 서비스별 모델로 파싱합니다.",
+        )
+    else:
+        use_typed = False
     run_clicked = st.form_submit_button(
         "Run request",
         type="primary",
@@ -490,13 +505,15 @@ if run_clicked:
             timeout=float(timeout),
             service_key_source=selected_key_source,
         )
-        result = hub.call(
-            selected_service_id,
+        service_client = hub.service(selected_service_id)
+        caller = service_client.typed if use_typed else service_client
+        result = caller.call(
             selected_operation,
             page_no=int(page_no),
             num_of_rows=int(num_of_rows),
             **request_params,
         )
+        trace.append(f"typed={use_typed}")
         trace.append(f"items={len(result.items)}")
         trace.append(f"total_count={result.total_count}")
     except TourApiError as exc:

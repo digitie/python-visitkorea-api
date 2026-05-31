@@ -26,6 +26,7 @@ def test_typed_service_view_parses_known_services():
                         "contentId": "100",
                         "facltNm": "숲속야영장",
                         "doNm": "강원특별자치도",
+                        "intro": "숲속 캠핑장 소개",
                         "mapX": "128.39",
                         "mapY": "37.55",
                         "unmodeled": "원문보존",
@@ -46,6 +47,8 @@ def test_typed_service_view_parses_known_services():
     assert isinstance(item, GoCampingItem)
     assert item.facility_name == "숲속야영장"
     assert item.do_name == "강원특별자치도"
+    # GoCamping returns intro text under `intro` (not `lineIntro`).
+    assert item.line_intro == "숲속 캠핑장 소개"
     assert item.coordinate is not None
     assert item.raw["unmodeled"] == "원문보존"
     assert session.calls[0]["url"].endswith("/GoCamping/basedList")
