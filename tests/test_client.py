@@ -292,6 +292,39 @@ def test_detail_intro_info_and_images(fake_client_factory):
     assert session.calls[2]["params"]["subImageYN"] == "N"
 
 
+def test_detail_pet_tour_parses_typed_fields(fake_client_factory):
+    row = {
+        "contentid": "126508",
+        "contenttypeid": "12",
+        "acmpyTypeCd": "동반가능",
+        "acmpyPsblCpam": "소형견",
+        "acmpyNeedMtr": "목줄 필수",
+        "relaAcdntRiskMtr": "낙상 주의",
+        "relaPosesFcltyetc": "급수대",
+        "etcAcmpyInfo": "내부 동반 불가",
+        "unmodeled_field": "원문보존",
+    }
+    client, session = fake_client_factory(FakeResponse(tour_payload(row)))
+
+    page = client.detail_pet_tour("126508")
+
+    item = page.items[0]
+    assert item.content_id == "126508"
+    assert item.pet_companion_type == "동반가능"
+    assert item.pet_companion_possible == "소형견"
+    assert item.pet_companion_need == "목줄 필수"
+    assert item.accident_risk == "낙상 주의"
+    assert item.related_facility_etc == "급수대"
+    assert item.etc_companion_info == "내부 동반 불가"
+    assert item.raw["unmodeled_field"] == "원문보존"
+    assert session.calls[0]["url"].endswith("/KorService2/detailPetTour2")
+    assert session.calls[0]["params"]["contentId"] == "126508"
+    assert page.context.endpoint == "detailPetTour2"
+
+    with pytest.raises(ValueError, match="content_id"):
+        client.detail_pet_tour("")
+
+
 def test_sync_and_code_endpoints(fake_client_factory):
     client, session = fake_client_factory(
         FakeResponse(tour_payload(sample_tour_item())),
@@ -310,6 +343,26 @@ def test_sync_and_code_endpoints(fake_client_factory):
     assert area_page.items[0].code == "1"
     assert legal_page.items[0].code == "11"
     assert lcls_page.items[0].name == "역사관광"
+
+
+def test_code_cache_avoids_duplicate_requests(fake_client_factory):
+    cache: dict = {}
+    client, session = fake_client_factory(
+        FakeResponse(tour_payload({"code": "1", "name": "서울", "rnum": "1"})),
+        code_cache=cache,
+    )
+
+    first = client.area_codes()
+    second = client.area_codes()
+
+    assert first.items[0].code == "1"
+    assert second is first
+    assert len(session.calls) == 1
+    assert len(cache) == 1
+
+    # A different parameter set is a distinct cache entry and would issue a new request.
+    with pytest.raises(AssertionError, match="no fake response left"):
+        client.area_codes(area_code="1")
 
 
 def test_client_iter_pages_increments_page_no(fake_client_factory):

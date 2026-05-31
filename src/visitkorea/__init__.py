@@ -10,6 +10,7 @@ from ._auth import (
     service_key_source,
     service_key_sources,
 )
+from ._ratelimit import RateLimiter, TokenBucketRateLimiter
 from .client import AsyncKrTourApiClient, AsyncTourApiClient, KrTourApiClient, TourApiClient
 from .display import CopyrightDisplayInfo, clean_tourapi_html, copyright_display_info
 from .enums import (
@@ -48,6 +49,7 @@ from .models import (
     ImageInfo,
     IntroInfo,
     Page,
+    PetTourInfo,
     RelatedTourItem,
     RepeatInfo,
     TourApiCallContext,
@@ -126,7 +128,9 @@ __all__ = [
     "OperationSchema",
     "Page",
     "ParameterOption",
+    "PetTourInfo",
     "PlaceCoordinate",
+    "RateLimiter",
     "RelatedTourItem",
     "RelatedTourServiceClient",
     "RepeatInfo",
@@ -134,6 +138,7 @@ __all__ = [
     "ServiceKey",
     "ServiceKeySource",
     "SigunguCodeValue",
+    "TokenBucketRateLimiter",
     "TourApiAuthError",
     "TourApiCallContext",
     "TourApiClient",

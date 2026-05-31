@@ -2,7 +2,15 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Awaitable, Callable, Iterable, Iterator, Mapping
+from collections.abc import (
+    AsyncIterator,
+    Awaitable,
+    Callable,
+    Iterable,
+    Iterator,
+    Mapping,
+    MutableMapping,
+)
 from datetime import date, datetime
 from typing import Any, TypeVar
 
@@ -17,9 +25,19 @@ from ._convert import (
     to_yyyymmdd,
     yn,
 )
-from ._http import AsyncSessionLike, AsyncTourApiHttp, SessionLike, TourApiHttp
+from ._http import (
+    DEFAULT_BACKOFF_FACTOR,
+    DEFAULT_MAX_BACKOFF,
+    DEFAULT_MAX_RETRIES,
+    AsyncSessionLike,
+    AsyncTourApiHttp,
+    SessionLike,
+    TimeoutValue,
+    TourApiHttp,
+)
 from ._pagination import async_iter_paginated_pages, iter_paginated_pages
 from ._provenance import call_context
+from ._ratelimit import RateLimiter
 from ._time import parse_tour_datetime
 from .enums import SERVICE_NAME_BY_LANGUAGE, AreaCode, Arrange, ContentType, Language, MobileOS
 from .exceptions import TourApiAuthError, TourApiNoDataError, TourApiParseError, TourApiRequestError
@@ -28,6 +46,7 @@ from .models import (
     ImageInfo,
     IntroInfo,
     Page,
+    PetTourInfo,
     RawRecord,
     RepeatInfo,
     TourDetail,
@@ -56,8 +75,13 @@ class KrTourApiClient:
         mobile_os: MobileOS | str = MobileOS.ETC,
         mobile_app: str = "visitkorea",
         base_url: str = DEFAULT_BASE_URL,
-        timeout: float = 10.0,
+        timeout: TimeoutValue = 10.0,
         retries: int = 3,
+        max_retries: int = DEFAULT_MAX_RETRIES,
+        backoff_factor: float = DEFAULT_BACKOFF_FACTOR,
+        max_backoff: float = DEFAULT_MAX_BACKOFF,
+        rate_limiter: RateLimiter | None = None,
+        code_cache: MutableMapping[Any, Page[CodeItem]] | None = None,
         session: SessionLike | None = None,
         service_key_source: str = DEFAULT_SERVICE_KEY_SOURCE,
     ) -> None:
@@ -77,6 +101,7 @@ class KrTourApiClient:
         self.mobile_app = mobile_app
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
+        self._code_cache = code_cache
         self._http = TourApiHttp(
             key,
             base_url=self.base_url,
@@ -86,6 +111,10 @@ class KrTourApiClient:
             session=session,
             timeout=timeout,
             retries=retries,
+            max_retries=max_retries,
+            backoff_factor=backoff_factor,
+            max_backoff=max_backoff,
+            rate_limiter=rate_limiter,
         )
 
     @classmethod
@@ -437,6 +466,22 @@ class KrTourApiClient:
         }
         return self._get_page("detailImage2", params, _image_info)
 
+    def detail_pet_tour(
+        self,
+        content_id: str,
+        *,
+        page_no: int = 1,
+        num_of_rows: int = 10,
+    ) -> Page[PetTourInfo]:
+        """Fetch pet-companion detail records (detailPetTour2) for a content ID."""
+
+        if not content_id:
+            raise ValueError("content_id must not be empty")
+        params = self._page_params(page_no=page_no, num_of_rows=num_of_rows) | {
+            "contentId": content_id,
+        }
+        return self._get_page("detailPetTour2", params, _pet_tour_info)
+
     def area_based_sync_list(
         self,
         *,
@@ -491,7 +536,7 @@ class KrTourApiClient:
         params = self._page_params(page_no=page_no, num_of_rows=num_of_rows) | {
             "areaCode": enum_value(area_code)
         }
-        return self._get_page("areaCode2", params, _code_item)
+        return self._cached_code_page("areaCode2", params)
 
     def category_codes(
         self,
@@ -512,7 +557,7 @@ class KrTourApiClient:
             "cat2": cat2,
             "cat3": cat3,
         }
-        return self._get_page("categoryCode2", params, _code_item)
+        return self._cached_code_page("categoryCode2", params)
 
     def legal_dong_codes(
         self,
@@ -528,7 +573,7 @@ class KrTourApiClient:
             "lDongRegnCd": l_dong_regn_cd,
             "lDongListYn": yn(list_yn),
         }
-        return self._get_page("ldongCode2", params, _code_item)
+        return self._cached_code_page("ldongCode2", params)
 
     def classification_system_codes(
         self,
@@ -553,7 +598,7 @@ class KrTourApiClient:
             "lclsSystm3": lcls_systm3,
             "lclsSystmListYn": yn(list_yn),
         }
-        return self._get_page("lclsSystmCode2", params, _code_item)
+        return self._cached_code_page("lclsSystmCode2", params)
 
     def _detail_params(
         self,
@@ -622,6 +667,21 @@ class KrTourApiClient:
         _validate_page(page_no, num_of_rows)
         return {"pageNo": page_no, "numOfRows": num_of_rows}
 
+    def _cached_code_page(
+        self,
+        endpoint: str,
+        params: Mapping[str, Any],
+    ) -> Page[CodeItem]:
+        if self._code_cache is None:
+            return self._get_page(endpoint, params, _code_item)
+        key = _code_cache_key(endpoint, params)
+        cached = self._code_cache.get(key)
+        if cached is not None:
+            return cached
+        page = self._get_page(endpoint, params, _code_item)
+        self._code_cache[key] = page
+        return page
+
     def _get_page(
         self,
         endpoint: str,
@@ -671,8 +731,13 @@ class AsyncKrTourApiClient:
         mobile_os: MobileOS | str = MobileOS.ETC,
         mobile_app: str = "visitkorea",
         base_url: str = DEFAULT_BASE_URL,
-        timeout: float = 10.0,
+        timeout: TimeoutValue = 10.0,
         retries: int = 3,
+        max_retries: int = DEFAULT_MAX_RETRIES,
+        backoff_factor: float = DEFAULT_BACKOFF_FACTOR,
+        max_backoff: float = DEFAULT_MAX_BACKOFF,
+        rate_limiter: RateLimiter | None = None,
+        code_cache: MutableMapping[Any, Page[CodeItem]] | None = None,
         session: AsyncSessionLike | None = None,
         service_key_source: str = DEFAULT_SERVICE_KEY_SOURCE,
     ) -> None:
@@ -692,6 +757,7 @@ class AsyncKrTourApiClient:
         self.mobile_app = mobile_app
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
+        self._code_cache = code_cache
         self._http = AsyncTourApiHttp(
             key,
             base_url=self.base_url,
@@ -701,6 +767,10 @@ class AsyncKrTourApiClient:
             session=session,
             timeout=timeout,
             retries=retries,
+            max_retries=max_retries,
+            backoff_factor=backoff_factor,
+            max_backoff=max_backoff,
+            rate_limiter=rate_limiter,
         )
 
     @classmethod
@@ -1019,6 +1089,22 @@ class AsyncKrTourApiClient:
         }
         return await self._get_page("detailImage2", params, _image_info)
 
+    async def detail_pet_tour(
+        self,
+        content_id: str,
+        *,
+        page_no: int = 1,
+        num_of_rows: int = 10,
+    ) -> Page[PetTourInfo]:
+        """Fetch pet-companion detail records (detailPetTour2) for a content ID."""
+
+        if not content_id:
+            raise ValueError("content_id must not be empty")
+        params = self._page_params(page_no=page_no, num_of_rows=num_of_rows) | {
+            "contentId": content_id,
+        }
+        return await self._get_page("detailPetTour2", params, _pet_tour_info)
+
     async def area_based_sync_list(
         self,
         *,
@@ -1069,7 +1155,7 @@ class AsyncKrTourApiClient:
         params = self._page_params(page_no=page_no, num_of_rows=num_of_rows) | {
             "areaCode": enum_value(area_code)
         }
-        return await self._get_page("areaCode2", params, _code_item)
+        return await self._cached_code_page("areaCode2", params)
 
     async def category_codes(
         self,
@@ -1088,7 +1174,7 @@ class AsyncKrTourApiClient:
             "cat2": cat2,
             "cat3": cat3,
         }
-        return await self._get_page("categoryCode2", params, _code_item)
+        return await self._cached_code_page("categoryCode2", params)
 
     async def legal_dong_codes(
         self,
@@ -1102,7 +1188,7 @@ class AsyncKrTourApiClient:
             "lDongRegnCd": l_dong_regn_cd,
             "lDongListYn": yn(list_yn),
         }
-        return await self._get_page("ldongCode2", params, _code_item)
+        return await self._cached_code_page("ldongCode2", params)
 
     async def classification_system_codes(
         self,
@@ -1125,7 +1211,7 @@ class AsyncKrTourApiClient:
             "lclsSystm3": lcls_systm3,
             "lclsSystmListYn": yn(list_yn),
         }
-        return await self._get_page("lclsSystmCode2", params, _code_item)
+        return await self._cached_code_page("lclsSystmCode2", params)
 
     def _detail_params(
         self,
@@ -1194,6 +1280,21 @@ class AsyncKrTourApiClient:
         _validate_page(page_no, num_of_rows)
         return {"pageNo": page_no, "numOfRows": num_of_rows}
 
+    async def _cached_code_page(
+        self,
+        endpoint: str,
+        params: Mapping[str, Any],
+    ) -> Page[CodeItem]:
+        if self._code_cache is None:
+            return await self._get_page(endpoint, params, _code_item)
+        key = _code_cache_key(endpoint, params)
+        cached = self._code_cache.get(key)
+        if cached is not None:
+            return cached
+        page = await self._get_page(endpoint, params, _code_item)
+        self._code_cache[key] = page
+        return page
+
     async def _get_page(
         self,
         endpoint: str,
@@ -1235,8 +1336,8 @@ TourApiClient = KrTourApiClient
 AsyncTourApiClient = AsyncKrTourApiClient
 
 
-def _first_env(names: tuple[str, ...]) -> str | None:
-    return resolve_service_key(source=DEFAULT_SERVICE_KEY_SOURCE, env_names=names)
+def _code_cache_key(endpoint: str, params: Mapping[str, Any]) -> tuple[Any, ...]:
+    return (endpoint, tuple(sorted((str(k), str(v)) for k, v in params.items())))
 
 
 def _service_name_for_language(language: Language | str) -> str:
@@ -1422,6 +1523,23 @@ def _image_info(row: Mapping[str, Any]) -> ImageInfo:
         origin_img_url=strip_or_none(row.get("originimgurl")),
         small_image_url=strip_or_none(row.get("smallimageurl")),
         copyright_division_code=strip_or_none(row.get("cpyrhtDivCd")),
+        raw=row,
+    )
+
+
+def _pet_tour_info(row: Mapping[str, Any]) -> PetTourInfo:
+    return PetTourInfo(
+        content_id=strip_or_none(row.get("contentid")),
+        content_type_id=strip_or_none(row.get("contenttypeid")),
+        pet_companion_type=strip_or_none(row.get("acmpyTypeCd")),
+        pet_companion_possible=strip_or_none(row.get("acmpyPsblCpam")),
+        pet_companion_need=strip_or_none(row.get("acmpyNeedMtr")),
+        accident_risk=strip_or_none(row.get("relaAcdntRiskMtr")),
+        related_facility_etc=strip_or_none(row.get("relaPosesFcltyetc")),
+        related_furnished_items=strip_or_none(row.get("relaFrnshPrdlst")),
+        related_rental_items=strip_or_none(row.get("relaRntlPrdlst")),
+        related_purchase_items=strip_or_none(row.get("relaPurcPrdlst")),
+        etc_companion_info=strip_or_none(row.get("etcAcmpyInfo")),
         raw=row,
     )
 

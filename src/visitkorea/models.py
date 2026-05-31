@@ -195,11 +195,124 @@ class CodeItem(TourApiModel):
     raw: RawRecord = Field(repr=False)
 
 
+_INTRO_FIELD_ALIASES: dict[str, tuple[str, ...]] = {
+    "info_center": (
+        "infocenter",
+        "infocenterculture",
+        "infocenterleports",
+        "infocenterlodging",
+        "infocentershopping",
+        "infocenterfood",
+        "infocentertourcourse",
+    ),
+    "use_time": (
+        "usetime",
+        "usetimeculture",
+        "usetimeleports",
+        "usetimefestival",
+        "opentime",
+        "opentimefood",
+        "playtime",
+    ),
+    "rest_date": (
+        "restdate",
+        "restdateculture",
+        "restdateleports",
+        "restdateshopping",
+        "restdatefood",
+    ),
+    "parking_info": (
+        "parking",
+        "parkingculture",
+        "parkingleports",
+        "parkinglodging",
+        "parkingshopping",
+        "parkingfood",
+    ),
+    "use_fee": ("usefee", "usefeeleports"),
+    "pet_allowed": (
+        "chkpet",
+        "chkpetculture",
+        "chkpetleports",
+        "chkpetshopping",
+    ),
+}
+
+
 class IntroInfo(TourApiModel):
-    """Introduction detail record. The field set depends on content_type_id."""
+    """Introduction detail record. The field set depends on content_type_id.
+
+    Content-type-specific fields stay in `raw`. The convenience properties below read
+    the documented per-type aliases from `raw`, returning the first present value or
+    `None`, so an unknown content type simply yields `None` without losing any data.
+    """
 
     content_id: str | None
     content_type_id: str | None
+    raw: RawRecord = Field(repr=False)
+
+    def _first(self, group: str) -> str | None:
+        for name in _INTRO_FIELD_ALIASES[group]:
+            value = self.raw.get(name)
+            if value is not None and str(value).strip():
+                return str(value).strip()
+        return None
+
+    @property
+    def info_center(self) -> str | None:
+        """Information/contact center text for the content's type."""
+
+        return self._first("info_center")
+
+    @property
+    def use_time(self) -> str | None:
+        """Operating/use hours or play time for the content's type."""
+
+        return self._first("use_time")
+
+    @property
+    def rest_date(self) -> str | None:
+        """Closed/rest day text for the content's type."""
+
+        return self._first("rest_date")
+
+    @property
+    def parking_info(self) -> str | None:
+        """Parking availability text for the content's type."""
+
+        return self._first("parking_info")
+
+    @property
+    def use_fee(self) -> str | None:
+        """Admission/use fee text for the content's type."""
+
+        return self._first("use_fee")
+
+    @property
+    def pet_allowed(self) -> str | None:
+        """Pet-allowed text for the content's type."""
+
+        return self._first("pet_allowed")
+
+
+class PetTourInfo(TourApiModel):
+    """Pet-companion detail record from detailPetTour2.
+
+    The typed fields below use the documented detailPetTour2 parameter names. Any
+    field not modeled here is preserved in `raw`.
+    """
+
+    content_id: str | None
+    content_type_id: str | None
+    pet_companion_type: str | None
+    pet_companion_possible: str | None
+    pet_companion_need: str | None
+    accident_risk: str | None
+    related_facility_etc: str | None
+    related_furnished_items: str | None
+    related_rental_items: str | None
+    related_purchase_items: str | None
+    etc_companion_info: str | None
     raw: RawRecord = Field(repr=False)
 
 

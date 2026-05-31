@@ -11,15 +11,20 @@ from kraddr.base import PlaceCoordinate
 from ._auth import DEFAULT_SERVICE_KEY_SOURCE, resolve_service_key
 from ._convert import enum_value, strip_or_none, to_int_or_none, to_yyyymmdd, without_none, yn
 from ._http import (
+    DEFAULT_BACKOFF_FACTOR,
+    DEFAULT_MAX_BACKOFF,
+    DEFAULT_MAX_RETRIES,
     AsyncSessionLike,
     AsyncTourApiHttp,
     SessionLike,
+    TimeoutValue,
     TourApiHttp,
     build_async_session,
     build_session,
 )
 from ._pagination import async_iter_paginated_pages, iter_paginated_pages
 from ._provenance import call_context
+from ._ratelimit import RateLimiter
 from .client import DEFAULT_BASE_URL, DEFAULT_ENV_NAMES, _extract_items
 from .enums import MobileOS
 from .exceptions import TourApiAuthError, TourApiRequestError
@@ -37,8 +42,12 @@ class TourApiHubClient:
         mobile_os: MobileOS | str = MobileOS.ETC,
         mobile_app: str = "visitkorea",
         base_url: str = DEFAULT_BASE_URL,
-        timeout: float = 10.0,
+        timeout: TimeoutValue = 10.0,
         retries: int = 3,
+        max_retries: int = DEFAULT_MAX_RETRIES,
+        backoff_factor: float = DEFAULT_BACKOFF_FACTOR,
+        max_backoff: float = DEFAULT_MAX_BACKOFF,
+        rate_limiter: RateLimiter | None = None,
         session: SessionLike | None = None,
         service_key_source: str = DEFAULT_SERVICE_KEY_SOURCE,
     ) -> None:
@@ -57,6 +66,10 @@ class TourApiHubClient:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.retries = retries
+        self.max_retries = max_retries
+        self.backoff_factor = backoff_factor
+        self.max_backoff = max_backoff
+        self.rate_limiter = rate_limiter
         self.session = cast("SessionLike", session or build_session(retries))
         self._owns_session = session is None
 
@@ -136,6 +149,10 @@ class TourApiHubClient:
             base_url=self.base_url,
             timeout=self.timeout,
             retries=self.retries,
+            max_retries=self.max_retries,
+            backoff_factor=self.backoff_factor,
+            max_backoff=self.max_backoff,
+            rate_limiter=self.rate_limiter,
             session=self.session,
         )
 
@@ -210,8 +227,12 @@ class TourApiServiceClient:
         mobile_os: str,
         mobile_app: str,
         base_url: str,
-        timeout: float,
+        timeout: TimeoutValue,
         retries: int,
+        max_retries: int = DEFAULT_MAX_RETRIES,
+        backoff_factor: float = DEFAULT_BACKOFF_FACTOR,
+        max_backoff: float = DEFAULT_MAX_BACKOFF,
+        rate_limiter: RateLimiter | None = None,
         session: SessionLike | None,
     ) -> None:
         self.definition = definition
@@ -225,6 +246,10 @@ class TourApiServiceClient:
             session=session,
             timeout=timeout,
             retries=retries,
+            max_retries=max_retries,
+            backoff_factor=backoff_factor,
+            max_backoff=max_backoff,
+            rate_limiter=rate_limiter,
         )
 
     @property
@@ -508,8 +533,12 @@ class AsyncTourApiHubClient:
         mobile_os: MobileOS | str = MobileOS.ETC,
         mobile_app: str = "visitkorea",
         base_url: str = DEFAULT_BASE_URL,
-        timeout: float = 10.0,
+        timeout: TimeoutValue = 10.0,
         retries: int = 3,
+        max_retries: int = DEFAULT_MAX_RETRIES,
+        backoff_factor: float = DEFAULT_BACKOFF_FACTOR,
+        max_backoff: float = DEFAULT_MAX_BACKOFF,
+        rate_limiter: RateLimiter | None = None,
         session: AsyncSessionLike | None = None,
         service_key_source: str = DEFAULT_SERVICE_KEY_SOURCE,
     ) -> None:
@@ -528,6 +557,10 @@ class AsyncTourApiHubClient:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.retries = retries
+        self.max_retries = max_retries
+        self.backoff_factor = backoff_factor
+        self.max_backoff = max_backoff
+        self.rate_limiter = rate_limiter
         self.session = cast("AsyncSessionLike", session or build_async_session(retries))
         self._owns_session = session is None
 
@@ -597,6 +630,10 @@ class AsyncTourApiHubClient:
             base_url=self.base_url,
             timeout=self.timeout,
             retries=self.retries,
+            max_retries=self.max_retries,
+            backoff_factor=self.backoff_factor,
+            max_backoff=self.max_backoff,
+            rate_limiter=self.rate_limiter,
             session=self.session,
         )
 
@@ -672,8 +709,12 @@ class AsyncTourApiServiceClient:
         mobile_os: str,
         mobile_app: str,
         base_url: str,
-        timeout: float,
+        timeout: TimeoutValue,
         retries: int,
+        max_retries: int = DEFAULT_MAX_RETRIES,
+        backoff_factor: float = DEFAULT_BACKOFF_FACTOR,
+        max_backoff: float = DEFAULT_MAX_BACKOFF,
+        rate_limiter: RateLimiter | None = None,
         session: AsyncSessionLike | None,
     ) -> None:
         self.definition = definition
@@ -687,6 +728,10 @@ class AsyncTourApiServiceClient:
             session=session,
             timeout=timeout,
             retries=retries,
+            max_retries=max_retries,
+            backoff_factor=backoff_factor,
+            max_backoff=max_backoff,
+            rate_limiter=rate_limiter,
         )
 
     @property
