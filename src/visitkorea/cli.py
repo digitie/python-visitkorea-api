@@ -12,6 +12,7 @@ from typing import Any, cast
 from pydantic import BaseModel
 
 from .client import KrTourApiClient
+from .services import get_api_catalog
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -39,10 +40,35 @@ def main(argv: Sequence[str] | None = None) -> int:
     detail = subparsers.add_parser("detail")
     detail.add_argument("content_id")
 
+    pet = subparsers.add_parser("pet-detail")
+    pet.add_argument("content_id")
+
+    festival = subparsers.add_parser("festival")
+    festival.add_argument("event_start_date", help="YYYYMMDD")
+    festival.add_argument("--event-end-date")
+    festival.add_argument("--area-code")
+    festival.add_argument("--sigungu-code")
+
+    stay = subparsers.add_parser("stay")
+    stay.add_argument("--area-code")
+    stay.add_argument("--sigungu-code")
+
+    area_based = subparsers.add_parser("area-based")
+    area_based.add_argument("--content-type-id")
+    area_based.add_argument("--area-code")
+    area_based.add_argument("--sigungu-code")
+
     areas = subparsers.add_parser("area-codes")
     areas.add_argument("--area-code")
 
+    subparsers.add_parser("catalog", help="List bundled TourAPI services and operations.")
+
     args = parser.parse_args(argv)
+
+    if args.command == "catalog":
+        print(json.dumps(_jsonable(list(get_api_catalog())), ensure_ascii=False, indent=2))
+        return 0
+
     client = KrTourApiClient(
         service_key=args.service_key,
         mobile_app=args.mobile_app,
@@ -66,6 +92,26 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
     elif args.command == "detail":
         result = client.detail_common(args.content_id)
+    elif args.command == "pet-detail":
+        result = client.detail_pet_tour(args.content_id)
+    elif args.command == "festival":
+        result = client.search_festival(
+            args.event_start_date,
+            event_end_date=args.event_end_date,
+            area_code=args.area_code,
+            sigungu_code=args.sigungu_code,
+        )
+    elif args.command == "stay":
+        result = client.search_stay(
+            area_code=args.area_code,
+            sigungu_code=args.sigungu_code,
+        )
+    elif args.command == "area-based":
+        result = client.area_based_list(
+            content_type_id=args.content_type_id,
+            area_code=args.area_code,
+            sigungu_code=args.sigungu_code,
+        )
     else:
         result = client.area_codes(area_code=args.area_code)
 

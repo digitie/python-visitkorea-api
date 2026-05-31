@@ -110,6 +110,7 @@ async with AsyncKrTourApiClient.from_env(mobile_app="my-travel-app") as client:
 | `detail_intro()` | `detailIntro2` | `Page[IntroInfo]` |
 | `detail_info()` | `detailInfo2` | `Page[RepeatInfo]` |
 | `detail_images()` | `detailImage2` | `Page[ImageInfo]` |
+| `detail_pet_tour()` | `detailPetTour2` | `Page[PetTourInfo]` |
 | `area_based_sync_list()` | `areaBasedSyncList2` | `Page[TourItem]` |
 | `area_codes()` | `areaCode2` | `Page[CodeItem]` |
 | `category_codes()` | `categoryCode2` | `Page[CodeItem]` |
