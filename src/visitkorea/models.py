@@ -104,6 +104,16 @@ class TourItem(TourApiModel):
     zipcode: str | None
     copyright_division_code: str | None
     show_flag: str | None
+    # 축제(searchFestival) 전용 필드 — 비축제 item에서는 None.
+    event_start_date: str | None = None
+    """축제 시작일 (YYYYMMDD 문자열, searchFestival ``eventstartdate``). 비축제는 None."""
+    event_end_date: str | None = None
+    """축제 종료일 (YYYYMMDD 문자열, searchFestival ``eventenddate``). 비축제는 None."""
+    # 상세(detailCommon) 필드 — list 응답에는 보통 없고 detail 병합 시 채워진다.
+    overview: str | None = None
+    """상세 설명 (detailCommon ``overview``). list 응답엔 보통 없음."""
+    homepage: str | None = None
+    """홈페이지 (detailCommon ``homepage``, HTML anchor 포함 가능). list 응답엔 보통 없음."""
     raw: RawRecord = Field(repr=False)
 
     @property

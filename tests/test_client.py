@@ -131,6 +131,41 @@ def test_festival_dates_are_normalized(fake_client_factory):
     assert params["modifiedtime"] == "20260401"
 
 
+def test_search_festival_parses_event_dates_into_item(fake_client_factory):
+    festival_row = sample_tour_item() | {
+        "contentid": "999",
+        "contenttypeid": "15",
+        "eventstartdate": "20260501",
+        "eventenddate": "20260507",
+    }
+    client, _session = fake_client_factory(FakeResponse(tour_payload(festival_row)))
+
+    page = client.search_festival(date(2026, 5, 1))
+
+    item = page.items[0]
+    assert item.event_start_date == "20260501"
+    assert item.event_end_date == "20260507"
+    # list 응답엔 overview/homepage가 없음 → None (detailCommon에서 보강).
+    assert item.overview is None
+    assert item.homepage is None
+
+
+def test_tour_item_fills_overview_homepage_when_present_in_raw(fake_client_factory):
+    row = sample_tour_item() | {
+        "overview": "상세 설명 텍스트",
+        "homepage": '<a href="https://example.com">홈페이지</a>',
+    }
+    client, _session = fake_client_factory(FakeResponse(tour_payload(row)))
+
+    page = client.search_keyword("궁")
+
+    item = page.items[0]
+    assert item.overview == "상세 설명 텍스트"
+    assert item.homepage.startswith("<a")
+    # 비축제 item은 event 날짜 None.
+    assert item.event_start_date is None
+
+
 def test_area_location_and_stay_endpoints(fake_client_factory):
     client, session = fake_client_factory(
         FakeResponse(tour_payload([])),
