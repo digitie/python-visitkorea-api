@@ -1431,6 +1431,10 @@ def _tour_item(row: Mapping[str, Any]) -> TourItem:
         zipcode=strip_or_none(row.get("zipcode")),
         copyright_division_code=strip_or_none(row.get("cpyrhtDivCd")),
         show_flag=strip_or_none(row.get("showflag") or row.get("showFlag")),
+        event_start_date=strip_or_none(row.get("eventstartdate")),
+        event_end_date=strip_or_none(row.get("eventenddate")),
+        overview=strip_or_none(row.get("overview")),
+        homepage=strip_or_none(row.get("homepage")),
         raw=row,
     )
 
