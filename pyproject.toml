@@ -39,7 +39,7 @@ dev = [
 ]
 debug-ui = [
   "pandas>=2.0",
-  "streamlit>=1.35",
+  "streamlit>=1.36",
 ]
 
 [project.scripts]
