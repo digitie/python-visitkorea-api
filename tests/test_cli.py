@@ -10,6 +10,12 @@ class DummyClient:
     def __init__(self, **kwargs: Any) -> None:
         self.kwargs = kwargs
 
+    def __enter__(self) -> DummyClient:
+        return self
+
+    def __exit__(self, *exc_info: object) -> None:
+        return None
+
     def search_keyword(self, keyword: str, **kwargs: Any) -> Page[dict[str, str]]:
         return Page(
             items=({"keyword": keyword, "content_type_id": str(kwargs.get("content_type_id"))},),
@@ -67,6 +73,12 @@ def test_cli_other_commands(monkeypatch, capsys):
 class _FakeCliClient:
     def __init__(self, **kwargs: Any) -> None:
         self.kwargs = kwargs
+
+    def __enter__(self) -> _FakeCliClient:
+        return self
+
+    def __exit__(self, *exc_info: object) -> None:
+        return None
 
     def _page(self, **item: str) -> Page[dict[str, str]]:
         return Page(items=(item,), total_count=1, page_no=1, num_of_rows=10, raw={})

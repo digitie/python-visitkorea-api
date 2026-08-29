@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 import re
 from collections.abc import AsyncIterator, Callable, Iterable, Iterator, Mapping
 from typing import Any, cast
@@ -28,6 +29,7 @@ from ._ratelimit import RateLimiter
 from ._service_views import (
     AsyncTypedServiceView,
     TypedServiceView,
+    _parse_rows,
     require_item_parser,
 )
 from .client import DEFAULT_BASE_URL, DEFAULT_ENV_NAMES, _extract_items
@@ -77,6 +79,7 @@ class TourApiHubClient:
         self.rate_limiter = rate_limiter
         self.session = cast("SessionLike", session or build_session(retries))
         self._owns_session = session is None
+        self._service_clients: dict[str, TourApiServiceClient] = {}
 
     @classmethod
     def from_env(
@@ -141,12 +144,15 @@ class TourApiHubClient:
         except KeyError as exc:
             known = ", ".join(service.key for service in SERVICE_DEFINITIONS)
             raise TourApiRequestError(f"unknown TourAPI service {key!r}; known: {known}") from exc
+        cached = self._service_clients.get(definition.key)
+        if cached is not None:
+            return cached
         client_class = (
             RelatedTourServiceClient
             if definition.key == "related_tour"
             else TourApiServiceClient
         )
-        return client_class(
+        client = client_class(
             definition,
             service_key=self.service_key,
             mobile_os=self.mobile_os,
@@ -160,6 +166,8 @@ class TourApiHubClient:
             rate_limiter=self.rate_limiter,
             session=self.session,
         )
+        self._service_clients[definition.key] = client
+        return client
 
     @property
     def related_tour(self) -> RelatedTourServiceClient:
@@ -272,7 +280,11 @@ class TourApiServiceClient:
         num_of_rows: int | None = 10,
         **kwargs: Any,
     ) -> Page[RawRecord]:
-        """Call an operation and return normalized raw item records."""
+        """Call an operation and return normalized raw item records.
+
+        Unlike the typed client's detail_* methods, this never raises
+        TourApiNoDataError on an empty result; it returns an empty Page.
+        """
 
         endpoint = self._resolve_operation(operation)
         request_params = _page_params(params={}, page_no=page_no, num_of_rows=num_of_rows)
@@ -284,8 +296,12 @@ class TourApiServiceClient:
         return Page(
             items=rows,
             total_count=to_int_or_none(body.get("totalCount")) or len(rows),
-            page_no=to_int_or_none(body.get("pageNo")) or page_no or 1,
-            num_of_rows=to_int_or_none(body.get("numOfRows")) or num_of_rows or len(rows),
+            page_no=to_int_or_none(body.get("pageNo"))
+            or to_int_or_none(request_params.get("pageNo"))
+            or 1,
+            num_of_rows=to_int_or_none(body.get("numOfRows"))
+            or to_int_or_none(request_params.get("numOfRows"))
+            or len(rows),
             raw=body,
             context=call_context(
                 service_name=self.definition.service_name,
@@ -379,6 +395,15 @@ class RelatedTourServiceClient(TourApiServiceClient):
     codes. Pass them as `area_cd` and `signgu_cd` here; the request uses the official
     TourAPI parameter names.
     """
+
+    @property
+    def typed(self) -> TypedServiceView:
+        """Not available: use area_based_list()/search_keyword() for typed access."""
+
+        raise TourApiRequestError(
+            "related_tour: no generic typed model is registered; use "
+            "area_based_list()/search_keyword() for typed access instead of .typed"
+        )
 
     def area_based_list(
         self,
@@ -517,7 +542,12 @@ class RelatedTourServiceClient(TourApiServiceClient):
         request_params = _page_params(params=params, page_no=page_no, num_of_rows=num_of_rows)
         body = self._http.get(endpoint, params=without_none(request_params))
         rows = _extract_items(body, endpoint, service_name=self.definition.service_name)
-        parsed = tuple(_related_tour_item(row) for row in rows)
+        parsed = _parse_rows(
+            rows,
+            _related_tour_item,
+            endpoint=endpoint,
+            service_name=self.definition.service_name,
+        )
         return Page(
             items=parsed,
             total_count=to_int_or_none(body.get("totalCount")) or len(parsed),
@@ -574,6 +604,7 @@ class AsyncTourApiHubClient:
         self.rate_limiter = rate_limiter
         self.session = cast("AsyncSessionLike", session or build_async_session(retries))
         self._owns_session = session is None
+        self._service_clients: dict[str, AsyncTourApiServiceClient] = {}
 
     @classmethod
     def from_env(
@@ -628,12 +659,15 @@ class AsyncTourApiHubClient:
         except KeyError as exc:
             known = ", ".join(service.key for service in SERVICE_DEFINITIONS)
             raise TourApiRequestError(f"unknown TourAPI service {key!r}; known: {known}") from exc
+        cached = self._service_clients.get(definition.key)
+        if cached is not None:
+            return cached
         client_class = (
             AsyncRelatedTourServiceClient
             if definition.key == "related_tour"
             else AsyncTourApiServiceClient
         )
-        return client_class(
+        client = client_class(
             definition,
             service_key=self.service_key,
             mobile_os=self.mobile_os,
@@ -647,6 +681,8 @@ class AsyncTourApiHubClient:
             rate_limiter=self.rate_limiter,
             session=self.session,
         )
+        self._service_clients[definition.key] = client
+        return client
 
     @property
     def related_tour(self) -> AsyncRelatedTourServiceClient:
@@ -760,7 +796,11 @@ class AsyncTourApiServiceClient:
         num_of_rows: int | None = 10,
         **kwargs: Any,
     ) -> Page[RawRecord]:
-        """Call an operation and return normalized raw item records asynchronously."""
+        """Call an operation and return normalized raw item records asynchronously.
+
+        Unlike the typed client's detail_* methods, this never raises
+        TourApiNoDataError on an empty result; it returns an empty Page.
+        """
 
         endpoint = self._resolve_operation(operation)
         request_params = _page_params(params={}, page_no=page_no, num_of_rows=num_of_rows)
@@ -772,8 +812,12 @@ class AsyncTourApiServiceClient:
         return Page(
             items=rows,
             total_count=to_int_or_none(body.get("totalCount")) or len(rows),
-            page_no=to_int_or_none(body.get("pageNo")) or page_no or 1,
-            num_of_rows=to_int_or_none(body.get("numOfRows")) or num_of_rows or len(rows),
+            page_no=to_int_or_none(body.get("pageNo"))
+            or to_int_or_none(request_params.get("pageNo"))
+            or 1,
+            num_of_rows=to_int_or_none(body.get("numOfRows"))
+            or to_int_or_none(request_params.get("numOfRows"))
+            or len(rows),
             raw=body,
             context=call_context(
                 service_name=self.definition.service_name,
@@ -863,6 +907,15 @@ class AsyncTourApiServiceClient:
 
 class AsyncRelatedTourServiceClient(AsyncTourApiServiceClient):
     """Async typed helper for TarRlteTarService1 related tourism records."""
+
+    @property
+    def typed(self) -> AsyncTypedServiceView:
+        """Not available: use area_based_list()/search_keyword() for typed access."""
+
+        raise TourApiRequestError(
+            "related_tour: no generic typed model is registered; use "
+            "area_based_list()/search_keyword() for typed access instead of .typed"
+        )
 
     async def area_based_list(
         self,
@@ -995,7 +1048,12 @@ class AsyncRelatedTourServiceClient(AsyncTourApiServiceClient):
         request_params = _page_params(params=params, page_no=page_no, num_of_rows=num_of_rows)
         body = await self._http.get(endpoint, params=without_none(request_params))
         rows = _extract_items(body, endpoint, service_name=self.definition.service_name)
-        parsed = tuple(_related_tour_item(row) for row in rows)
+        parsed = _parse_rows(
+            rows,
+            _related_tour_item,
+            endpoint=endpoint,
+            service_name=self.definition.service_name,
+        )
         return Page(
             items=parsed,
             total_count=to_int_or_none(body.get("totalCount")) or len(parsed),
@@ -1012,6 +1070,7 @@ class AsyncRelatedTourServiceClient(AsyncTourApiServiceClient):
         )
 
 
+@functools.cache
 def _operation_aliases(operations: tuple[str, ...]) -> dict[str, str]:
     aliases: dict[str, str] = {}
     counts: dict[str, int] = {}

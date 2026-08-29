@@ -146,14 +146,8 @@ def _candidate_env_paths(env_file_paths: Iterable[str | Path] | None) -> tuple[P
     if env_file_paths is not None:
         return tuple(Path(path) for path in env_file_paths)
 
-    paths: list[Path] = []
     current = Path.cwd()
-    for directory in (current, *current.parents):
-        for name in DEFAULT_ENV_FILE_NAMES:
-            path = directory / name
-            if path not in paths:
-                paths.append(path)
-    return tuple(paths)
+    return tuple(current / name for name in DEFAULT_ENV_FILE_NAMES)
 
 
 def _parse_dotenv_line(line: str) -> tuple[str, str] | None:

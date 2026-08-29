@@ -8,6 +8,7 @@ import random
 import time
 from collections.abc import Awaitable, Callable, Mapping
 from typing import Any, NoReturn, Protocol, cast
+from urllib.parse import quote
 from xml.etree import ElementTree
 
 import httpx
@@ -382,7 +383,9 @@ def _decode_response(
             service_name=service_name,
             failure_kind="parse",
         ) from exc
-    return _extract_body(payload, endpoint=endpoint, service_name=service_name)
+    return _extract_body(
+        payload, endpoint=endpoint, service_name=service_name, service_key=service_key
+    )
 
 
 def _raise_for_transport_error(
@@ -444,7 +447,9 @@ def _raise_for_status(
         )
 
 
-def _extract_body(payload: Any, *, endpoint: str, service_name: str) -> Mapping[str, Any]:
+def _extract_body(
+    payload: Any, *, endpoint: str, service_name: str, service_key: str
+) -> Mapping[str, Any]:
     if not isinstance(payload, Mapping):
         raise TourApiParseError(
             "TourAPI JSON root was not an object",
@@ -458,6 +463,7 @@ def _extract_body(payload: Any, *, endpoint: str, service_name: str) -> Mapping[
             payload["OpenAPI_ServiceResponse"],
             endpoint=endpoint,
             service_name=service_name,
+            service_key=service_key,
         )
 
     try:
@@ -493,7 +499,9 @@ def _extract_body(payload: Any, *, endpoint: str, service_name: str) -> Mapping[
         return body
     if code == "03":
         return body if isinstance(body, Mapping) else {}
-    _raise_for_result_code(code, message, endpoint=endpoint, service_name=service_name)
+    _raise_for_result_code(
+        code, message, endpoint=endpoint, service_name=service_name, service_key=service_key
+    )
     raise AssertionError("unreachable")
 
 
@@ -534,7 +542,9 @@ def _raise_for_xml_error(
     )
 
 
-def _raise_for_data_error(data: Any, *, endpoint: str, service_name: str) -> None:
+def _raise_for_data_error(
+    data: Any, *, endpoint: str, service_name: str, service_key: str
+) -> None:
     if not isinstance(data, Mapping):
         raise TourApiParseError(
             "OpenAPI_ServiceResponse was not an object",
@@ -557,7 +567,9 @@ def _raise_for_data_error(data: Any, *, endpoint: str, service_name: str) -> Non
         or header.get("resultMsg")
         or "TourAPI service error"
     )
-    _raise_for_result_code(code, message, endpoint=endpoint, service_name=service_name)
+    _raise_for_result_code(
+        code, message, endpoint=endpoint, service_name=service_name, service_key=service_key
+    )
 
 
 def _raise_for_result_code(
@@ -566,12 +578,12 @@ def _raise_for_result_code(
     *,
     endpoint: str,
     service_name: str,
-    service_key: str | None = None,
+    service_key: str | None,
 ) -> None:
     text = f"TourAPI returned {code}: {message}" if code else message
     text = _redact_secret(text, service_key)
     upper = text.upper()
-    if code in {"20", "30", "31", "32"} or "SERVICE_KEY" in upper or "AUTH" in upper:
+    if code in {"20", "21", "30", "31", "32"} or "SERVICE_KEY" in upper or "AUTH" in upper:
         raise TourApiAuthError(
             text,
             result_code=code or None,
@@ -641,4 +653,8 @@ def _parse_retry_after(response: ResponseLike) -> float | None:
 def _redact_secret(text: str, secret: str | None) -> str:
     if not secret:
         return text
-    return text.replace(secret, "[redacted]")
+    text = text.replace(secret, "[redacted]")
+    encoded = quote(secret, safe="")
+    if encoded != secret:
+        text = text.replace(encoded, "[redacted]")
+    return text

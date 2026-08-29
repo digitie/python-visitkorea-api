@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
 from typing import TypeVar
 
+from .exceptions import TourApiParseError
 from .models import Page
 
 T = TypeVar("T")
@@ -29,6 +30,7 @@ def iter_paginated_pages(
     current_page_no = page_no
     pages_seen = 0
     items_seen = 0
+    previous_raw = None
 
     while True:
         if max_pages is not None and pages_seen >= max_pages:
@@ -39,6 +41,15 @@ def iter_paginated_pages(
         page = fetch_page(current_page_no, num_of_rows)
         if page.is_empty:
             return
+        if previous_raw is not None and page.raw == previous_raw:
+            raise TourApiParseError(
+                f"page {current_page_no} repeated the previous page's data; "
+                "upstream pagination did not advance",
+                endpoint=page.endpoint,
+                service_name=page.service_name,
+                failure_kind="parse",
+            )
+        previous_raw = page.raw
 
         yield page
         pages_seen += 1
@@ -68,6 +79,7 @@ async def async_iter_paginated_pages(
     current_page_no = page_no
     pages_seen = 0
     items_seen = 0
+    previous_raw = None
 
     while True:
         if max_pages is not None and pages_seen >= max_pages:
@@ -78,6 +90,15 @@ async def async_iter_paginated_pages(
         page = await fetch_page(current_page_no, num_of_rows)
         if page.is_empty:
             return
+        if previous_raw is not None and page.raw == previous_raw:
+            raise TourApiParseError(
+                f"page {current_page_no} repeated the previous page's data; "
+                "upstream pagination did not advance",
+                endpoint=page.endpoint,
+                service_name=page.service_name,
+                failure_kind="parse",
+            )
+        previous_raw = page.raw
 
         yield page
         pages_seen += 1

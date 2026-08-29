@@ -19,7 +19,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="visitkorea")
     parser.add_argument(
         "--service-key",
-        help="TourAPI decoded service key. Defaults to DATA_GO_KR_SERVICE_KEY.",
+        help=(
+            "TourAPI decoded service key. Defaults to DATA_GO_KR_SERVICE_KEY. "
+            "Prefer the environment variable on shared hosts: this flag is visible "
+            "to other local users via the process list and may be saved in shell history."
+        ),
     )
     parser.add_argument("--mobile-app", default="visitkorea")
     parser.add_argument("--language", default="ko")
@@ -69,51 +73,50 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(json.dumps(_jsonable(list(get_api_catalog())), ensure_ascii=False, indent=2))
         return 0
 
-    client = KrTourApiClient(
+    with KrTourApiClient(
         service_key=args.service_key,
         mobile_app=args.mobile_app,
         language=args.language,
-    )
-
-    result: Any
-    if args.command == "keyword":
-        result = client.search_keyword(
-            args.keyword,
-            content_type_id=args.content_type_id,
-            area_code=args.area_code,
-            sigungu_code=args.sigungu_code,
-        )
-    elif args.command == "location":
-        result = client.location_based_list(
-            map_x=args.map_x,
-            map_y=args.map_y,
-            radius=args.radius,
-            content_type_id=args.content_type_id,
-        )
-    elif args.command == "detail":
-        result = client.detail_common(args.content_id)
-    elif args.command == "pet-detail":
-        result = client.detail_pet_tour(args.content_id)
-    elif args.command == "festival":
-        result = client.search_festival(
-            args.event_start_date,
-            event_end_date=args.event_end_date,
-            area_code=args.area_code,
-            sigungu_code=args.sigungu_code,
-        )
-    elif args.command == "stay":
-        result = client.search_stay(
-            area_code=args.area_code,
-            sigungu_code=args.sigungu_code,
-        )
-    elif args.command == "area-based":
-        result = client.area_based_list(
-            content_type_id=args.content_type_id,
-            area_code=args.area_code,
-            sigungu_code=args.sigungu_code,
-        )
-    else:
-        result = client.area_codes(area_code=args.area_code)
+    ) as client:
+        result: Any
+        if args.command == "keyword":
+            result = client.search_keyword(
+                args.keyword,
+                content_type_id=args.content_type_id,
+                area_code=args.area_code,
+                sigungu_code=args.sigungu_code,
+            )
+        elif args.command == "location":
+            result = client.location_based_list(
+                map_x=args.map_x,
+                map_y=args.map_y,
+                radius=args.radius,
+                content_type_id=args.content_type_id,
+            )
+        elif args.command == "detail":
+            result = client.detail_common(args.content_id)
+        elif args.command == "pet-detail":
+            result = client.detail_pet_tour(args.content_id)
+        elif args.command == "festival":
+            result = client.search_festival(
+                args.event_start_date,
+                event_end_date=args.event_end_date,
+                area_code=args.area_code,
+                sigungu_code=args.sigungu_code,
+            )
+        elif args.command == "stay":
+            result = client.search_stay(
+                area_code=args.area_code,
+                sigungu_code=args.sigungu_code,
+            )
+        elif args.command == "area-based":
+            result = client.area_based_list(
+                content_type_id=args.content_type_id,
+                area_code=args.area_code,
+                sigungu_code=args.sigungu_code,
+            )
+        else:
+            result = client.area_codes(area_code=args.area_code)
 
     print(json.dumps(_jsonable(result), ensure_ascii=False, indent=2))
     return 0

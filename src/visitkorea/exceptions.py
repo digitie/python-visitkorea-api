@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
+FailureKind = Literal["auth", "rate_limit", "server", "parse", "request", "no_data"]
+
 
 class TourApiError(Exception):
     """Base exception for all visitkorea errors."""
@@ -14,7 +18,7 @@ class TourApiError(Exception):
         status_code: int | None = None,
         endpoint: str | None = None,
         service_name: str | None = None,
-        failure_kind: str | None = None,
+        failure_kind: FailureKind | None = None,
     ) -> None:
         super().__init__(message)
         self.result_code = result_code
