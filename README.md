@@ -17,7 +17,7 @@
 | Python 라이브러리 (typed) | `from visitkorea import KrTourApiClient` | `KorService2` 자주 쓰는 endpoint를 typed method와 Pydantic 모델로 제공 |
 | Python 라이브러리 (generic hub) | `from visitkorea import TourApiHubClient` | 활용신청 목록 27개 서비스 전체를 카탈로그 기반으로 호출 |
 | CLI | `visitkorea --help` | 터미널에서 키워드/좌표/상세/코드 조회 |
-| 디버그 UI (선택) | `streamlit run debug_ui/app.py` | 전체 서비스 카탈로그를 브라우저에서 탐색하는 내부 도구 (`pip install -e ".[debug-ui]"`) |
+| 디버그 UI (선택) | `streamlit run examples/streamlit_debug_ui.py` | 전체 서비스 카탈로그를 브라우저에서 탐색하는 내부 도구 (`pip install -e ".[debug-ui]"`) |
 
 ## 먼저 읽을 문서
 
@@ -108,7 +108,7 @@ mypy src/visitkorea
 |------|------|
 | `src/visitkorea/` | 패키지 소스 — typed client, hub client, 모델, CLI 등 (세부는 [AGENTS.md](AGENTS.md) 모듈 소유권 참고) |
 | `tests/` | offline 단위 테스트 + `@pytest.mark.live` 라이브 테스트 |
-| `debug_ui/` | Streamlit 기반 선택 디버그 UI |
+| `examples/` | Streamlit 기반 선택 디버그 UI (`streamlit_debug_ui.py`) |
 | `docs/` | 사용자 가이드, Pydantic 모델, 카탈로그, 테스트/문제해결/의사결정 문서 |
 | `scripts/` | 매뉴얼 다운로드, live test 실행 스크립트 |
 

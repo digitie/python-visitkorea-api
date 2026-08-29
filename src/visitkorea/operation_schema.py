@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Final, Literal
+from typing import Any, Final, Literal
 
 from .enums import AreaCode, Arrange, ContentType
 from .exceptions import TourApiRequestError
-from .services import SERVICE_BY_KEY, SERVICE_DEFINITIONS
+from .services import SERVICE_BY_KEY, SERVICE_DEFINITIONS, get_api_catalog
 
 ParameterKind = Literal["text", "number", "date", "month", "enum", "boolean", "coordinate"]
 
@@ -106,6 +106,55 @@ def get_operation_parameters(service_id: str, operation: str) -> tuple[Operation
     """Return form parameters for one service operation."""
 
     return get_operation_schema(service_id, operation).parameters
+
+
+def get_api_catalog_entry(service_id: str, operation: str) -> dict[str, Any]:
+    """Return one `get_api_catalog()` row merged with pythonic parameter metadata.
+
+    The extra `required_params`/`optional_params`/`parameters` fields let a debug UI
+    (or any other client) build request forms straight from catalog data, with no
+    per-function branching: `parameters` carries each field's widget `kind` (text,
+    number, date, month, enum, boolean, coordinate) plus enum `options` where relevant.
+    """
+
+    schema = get_operation_schema(service_id, operation)
+    row = next(
+        entry
+        for entry in get_api_catalog()
+        if entry["service_id"] == schema.service_id and entry["operation"] == schema.operation
+    )
+    parameters = tuple(
+        parameter for parameter in schema.parameters if parameter.name != "service_specific"
+    )
+    return {
+        **row,
+        "pythonic_name": schema.pythonic_name,
+        "summary": schema.summary,
+        "details": schema.details,
+        "required_params": tuple(parameter.name for parameter in parameters if parameter.required),
+        "optional_params": tuple(
+            parameter.name for parameter in parameters if not parameter.required
+        ),
+        "parameters": tuple(_parameter_to_dict(parameter) for parameter in parameters),
+    }
+
+
+def _parameter_to_dict(parameter: OperationParameter) -> dict[str, Any]:
+    return {
+        "name": parameter.name,
+        "api_name": parameter.api_name,
+        "label": parameter.label,
+        "kind": parameter.kind,
+        "description": parameter.description,
+        "required": parameter.required,
+        "default": parameter.default,
+        "options": [
+            {"value": option.value, "label": option.label} for option in parameter.options
+        ],
+        "min_value": parameter.min_value,
+        "max_value": parameter.max_value,
+        "placeholder": parameter.placeholder,
+    }
 
 
 def _resolve_operation(operation: str, operations: tuple[str, ...]) -> str:
@@ -400,6 +449,12 @@ def _parameters_for_operation(
             *_classification_filters(),
             _show_flag(),
             _arrange(default=Arrange.MODIFIED_WITH_IMAGE.value),
+        )
+    if family == "area_list":
+        return (
+            *_classification_filters(),
+            _arrange(default=Arrange.MODIFIED_WITH_IMAGE.value),
+            _date("modified_time", "modifiedtime", "Modified date"),
         )
     if family in {"related_area", "related_keyword"}:
         params = [

@@ -13,6 +13,7 @@ from ._auth import (
 from ._ratelimit import RateLimiter, TokenBucketRateLimiter
 from ._service_views import AsyncTypedServiceView, TypedServiceView
 from .client import AsyncKrTourApiClient, AsyncTourApiClient, KrTourApiClient, TourApiClient
+from .debug import DebugRun, debug_error, jsonable, redact_sensitive, save_fixture
 from .display import CopyrightDisplayInfo, clean_tourapi_html, copyright_display_info
 from .enums import (
     AREA_CODE_TO_LDONG,
@@ -63,6 +64,7 @@ from .operation_schema import (
     OperationParameter,
     OperationSchema,
     ParameterOption,
+    get_api_catalog_entry,
     get_operation_parameters,
     get_operation_schema,
 )
@@ -126,6 +128,7 @@ __all__ = [
     "CopyrightDisplayInfo",
     "DataLabVisitorItem",
     "DateInput",
+    "DebugRun",
     "DurunubiCourseItem",
     "GoCampingItem",
     "ImageInfo",
@@ -176,13 +179,18 @@ __all__ = [
     "clean_tourapi_html",
     "content_type_label",
     "copyright_display_info",
+    "debug_error",
     "get_api_catalog",
+    "get_api_catalog_entry",
     "get_operation_parameters",
     "get_operation_schema",
     "get_service_catalog",
+    "jsonable",
     "ldong_regn_label",
     "normalize_service_key",
+    "redact_sensitive",
     "resolve_service_key",
+    "save_fixture",
     "service_key_env_names",
     "service_key_source",
     "service_key_sources",

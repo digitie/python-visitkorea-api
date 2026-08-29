@@ -33,9 +33,11 @@ from ._service_views import (
     require_item_parser,
 )
 from .client import DEFAULT_BASE_URL, DEFAULT_ENV_NAMES, _extract_items
+from .debug import DebugRun, debug_error, redact_sensitive
 from .enums import MobileOS
 from .exceptions import TourApiAuthError, TourApiRequestError
 from .models import Page, RawRecord, RelatedTourItem
+from .operation_schema import get_api_catalog_entry
 from .services import SERVICE_BY_KEY, SERVICE_DEFINITIONS, ServiceDefinition, get_api_catalog
 
 
@@ -185,6 +187,118 @@ class TourApiHubClient:
         """Call one operation from any registered service."""
 
         return self.service(service).call(operation, params=params, **kwargs)
+
+    def debug_fetch(
+        self,
+        service_id: str,
+        operation: str,
+        params: Mapping[str, Any] | None = None,
+        *,
+        page_no: int = 1,
+        num_of_rows: int = 10,
+        response_type: str = "json",
+        use_typed: bool = False,
+    ) -> DebugRun:
+        """Call one catalog operation and return full request/response/trace detail.
+
+        Routes purely through the catalog + generic service `.call()`/`.typed.call()`;
+        there is no per-service or per-function branching here, so this method backs
+        the debug UI and fixture generation for every service uniformly. `params` uses
+        pythonic field names (the same ones `get_api_catalog_entry()` lists), matching
+        the `**kwargs` convention already used by `TourApiServiceClient.call()`.
+        `use_typed=True` parses items with the service's registered `.typed` row
+        parser (see `SERVICE_ITEM_PARSERS`) when one exists, and raises otherwise.
+        """
+
+        if response_type != "json":
+            raise TourApiRequestError(
+                "visitkorea TourAPI always responds with JSON; "
+                f"response_type={response_type!r} is not supported."
+            )
+
+        pythonic_params = dict(params or {})
+        input_data = redact_sensitive(
+            {
+                "service_id": service_id,
+                "operation": operation,
+                "params": pythonic_params,
+                "page_no": page_no,
+                "num_of_rows": num_of_rows,
+                "response_type": response_type,
+                "use_typed": use_typed,
+            }
+        )
+        trace: list[str] = [
+            f"service_id={service_id}",
+            f"operation={operation}",
+            f"use_typed={use_typed}",
+        ]
+
+        try:
+            catalog_entry = get_api_catalog_entry(service_id, operation)
+        except Exception as exc:
+            trace.append(f"catalog_lookup_failed={type(exc).__name__}")
+            return DebugRun(
+                function=f"{service_id}.{operation}",
+                input=input_data,
+                request={},
+                response={},
+                parsed=None,
+                processed=None,
+                trace=trace,
+                error=debug_error(exc),
+                catalog=None,
+            )
+
+        trace.append(f"dataset={catalog_entry['dataset_name']}")
+        trace.append(f"service_key_apply_url={catalog_entry['service_key_apply_url']}")
+
+        try:
+            service_client = self.service(service_id)
+            resolved_operation = service_client._resolve_operation(operation)
+            caller = service_client.typed if use_typed else service_client
+            page = caller.call(
+                resolved_operation,
+                page_no=page_no,
+                num_of_rows=num_of_rows,
+                **pythonic_params,
+            )
+        except Exception as exc:
+            trace.append(f"call_failed={type(exc).__name__}")
+            return DebugRun(
+                function=f"{service_id}.{operation}",
+                input=input_data,
+                request={"method": "GET", "query": redact_sensitive(pythonic_params)},
+                response={},
+                parsed=None,
+                processed=None,
+                trace=trace,
+                error=debug_error(exc),
+                catalog=catalog_entry,
+            )
+
+        request_url = f"{self.base_url}/{catalog_entry['service_name']}/{resolved_operation}"
+        trace.append(f"items={len(page.items)}")
+        trace.append(f"total_count={page.total_count}")
+        return DebugRun(
+            function=f"{service_id}.{resolved_operation}",
+            input=input_data,
+            request={
+                "method": "GET",
+                "url": request_url,
+                "query": redact_sensitive(dict(page.context.request_params)),
+                "headers": {"Accept": "application/json"},
+            },
+            response={
+                "status_code": 200,
+                "headers": {},
+                "body": page.raw,
+            },
+            parsed=page,
+            processed=tuple(page.items),
+            trace=trace,
+            catalog=catalog_entry,
+        )
 
     def iter_pages(
         self,

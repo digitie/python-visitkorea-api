@@ -72,7 +72,7 @@
 | 환경변수 prefix | `DATA_GO_KR_*`, `VISITKOREA_API_*` |
 | 기본 base URL | `http://apis.data.go.kr/B551011` |
 | 기본 서비스 | `KorService2` |
-| 디버그 UI | `debug_ui/app.py` (Streamlit) |
+| 디버그 UI | `examples/streamlit_debug_ui.py` (Streamlit) |
 
 ## 개발 환경 정책
 
@@ -93,7 +93,8 @@ src/visitkorea/
 ├── client.py            # KrTourApiClient / AsyncKrTourApiClient — KorService2 typed wrapper
 ├── hub.py               # TourApiHubClient / AsyncTourApiHubClient — 27개 서비스 generic client
 ├── services.py          # SERVICE_DEFINITIONS 카탈로그 (api.visitkorea.or.kr 매뉴얼 기반)
-├── operation_schema.py  # 오퍼레이션별 파라미터 스키마 (디버그 UI용)
+├── operation_schema.py  # 오퍼레이션별 파라미터 스키마 + get_api_catalog_entry() (디버그 UI용)
+├── debug.py             # jsonable/redact_sensitive/debug_error/save_fixture (디버그 UI·fixture 공용)
 ├── models.py            # Pydantic v2 공개 response model (frozen)
 ├── types.py             # downstream integration용 공개 type alias
 ├── enums.py             # 공개 constant와 enum (AreaCode, ContentType, Language 등)
@@ -126,7 +127,7 @@ src/visitkorea/
 | 새 enum/constant 추가 | `enums.py` → `__init__.py` export → `test_enums.py` |
 | 새 예외 타입 추가 | `exceptions.py` → `_http.py` 매핑 → `test_http.py` |
 | TourAPI 응답 파싱 오류 수정 | `docs/repeated-mistakes.md`에 기록 → 가드레일 테스트 추가 → 코드 수정 |
-| 디버그 UI 수정 | `debug_ui/app.py` |
+| 디버그 UI 수정 | `examples/streamlit_debug_ui.py`, `src/visitkorea/debug.py` |
 
 ## 도메인 어휘
 
