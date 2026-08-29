@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import (
     AsyncIterator,
     Awaitable,
@@ -53,7 +54,7 @@ from .models import (
     TourItem,
 )
 
-DEFAULT_BASE_URL = "http://apis.data.go.kr/B551011"
+DEFAULT_BASE_URL = "https://apis.data.go.kr/B551011"
 DEFAULT_ENV_NAMES = DATA_GO_KR_ENV_NAMES
 T = TypeVar("T")
 
@@ -92,7 +93,8 @@ class KrTourApiClient:
         )
         if not key:
             raise TourApiAuthError(
-                "service_key is required. Pass service_key=... or set DATA_GO_KR_SERVICE_KEY."
+                "service_key is required. Pass service_key=... or set DATA_GO_KR_SERVICE_KEY.",
+                failure_kind="auth",
             )
         resolved_service_name = service_name or _service_name_for_language(language)
         self.service_key = key
@@ -136,7 +138,9 @@ class KrTourApiClient:
         )
         if not service_key:
             names = ", ".join((name, *fallback_names))
-            raise TourApiAuthError(f"none of these environment variables are set: {names}")
+            raise TourApiAuthError(
+                f"none of these environment variables are set: {names}", failure_kind="auth"
+            )
         return cls(service_key=service_key, **kwargs)
 
     @classmethod
@@ -699,10 +703,11 @@ class KrTourApiClient:
                 service_name=self.service_name,
                 failure_kind="parse",
             ) from exc
+        raw_total_count = to_int_or_none(body.get("totalCount"))
         return Page(
             items=parsed,
-            total_count=to_int_or_none(body.get("totalCount")) or len(parsed),
-            page_no=to_int_or_none(body.get("pageNo")) or to_int_or_none(params.get("pageNo")) or 1,
+            total_count=raw_total_count if raw_total_count is not None else len(parsed),
+            page_no=to_int_or_none(params.get("pageNo")) or to_int_or_none(body.get("pageNo")) or 1,
             num_of_rows=(
                 to_int_or_none(body.get("numOfRows"))
                 or to_int_or_none(params.get("numOfRows"))
@@ -748,7 +753,8 @@ class AsyncKrTourApiClient:
         )
         if not key:
             raise TourApiAuthError(
-                "service_key is required. Pass service_key=... or set DATA_GO_KR_SERVICE_KEY."
+                "service_key is required. Pass service_key=... or set DATA_GO_KR_SERVICE_KEY.",
+                failure_kind="auth",
             )
         resolved_service_name = service_name or _service_name_for_language(language)
         self.service_key = key
@@ -758,6 +764,7 @@ class AsyncKrTourApiClient:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self._code_cache = code_cache
+        self._code_cache_locks: dict[Any, asyncio.Lock] = {}
         self._http = AsyncTourApiHttp(
             key,
             base_url=self.base_url,
@@ -792,7 +799,9 @@ class AsyncKrTourApiClient:
         )
         if not service_key:
             names = ", ".join((name, *fallback_names))
-            raise TourApiAuthError(f"none of these environment variables are set: {names}")
+            raise TourApiAuthError(
+                f"none of these environment variables are set: {names}", failure_kind="auth"
+            )
         return cls(service_key=service_key, **kwargs)
 
     async def __aenter__(self) -> AsyncKrTourApiClient:
@@ -1291,9 +1300,14 @@ class AsyncKrTourApiClient:
         cached = self._code_cache.get(key)
         if cached is not None:
             return cached
-        page = await self._get_page(endpoint, params, _code_item)
-        self._code_cache[key] = page
-        return page
+        lock = self._code_cache_locks.setdefault(key, asyncio.Lock())
+        async with lock:
+            cached = self._code_cache.get(key)
+            if cached is not None:
+                return cached
+            page = await self._get_page(endpoint, params, _code_item)
+            self._code_cache[key] = page
+            return page
 
     async def _get_page(
         self,
@@ -1312,10 +1326,11 @@ class AsyncKrTourApiClient:
                 service_name=self.service_name,
                 failure_kind="parse",
             ) from exc
+        raw_total_count = to_int_or_none(body.get("totalCount"))
         return Page(
             items=parsed,
-            total_count=to_int_or_none(body.get("totalCount")) or len(parsed),
-            page_no=to_int_or_none(body.get("pageNo")) or to_int_or_none(params.get("pageNo")) or 1,
+            total_count=raw_total_count if raw_total_count is not None else len(parsed),
+            page_no=to_int_or_none(params.get("pageNo")) or to_int_or_none(body.get("pageNo")) or 1,
             num_of_rows=(
                 to_int_or_none(body.get("numOfRows"))
                 or to_int_or_none(params.get("numOfRows"))

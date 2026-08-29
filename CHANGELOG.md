@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- 4인 전문 리뷰어 서브에이전트의 적대적 코드 리뷰로 발견·검증된 버그 수정: 페이지네이션이 서버가
+  echo하는 `pageNo`를 신뢰해 다음 페이지를 계산하다가(`client.py`/`hub.py` 6개 호출부) 값이
+  틀리게 오면 같은 페이지를 반복 재요청하거나 조기 종료해 조용히 데이터가 유실되던 문제(로컬에서
+  추적한 요청 페이지 번호를 우선하도록 수정), TourAPI 결과 코드 `21`(서비스키 일시 비활성화)이
+  `TourApiAuthError`로 분류되지 않던 문제, 기본 base URL이 `http://`(평문)였던 문제를 `https://`로
+  전환, CLI가 클라이언트 HTTP 세션을 닫지 않던 문제(`with` 컨텍스트 매니저로 전환) 등. GitHub
+  Actions CI(`lint`/`typecheck`/`test`) 추가.
 - `GoCampingItem.line_intro`가 실제 응답 필드 `intro`를 읽도록 수정했다(기존 `lineIntro`는 응답에 없어 항상 None이었다). 실 API 응답으로 검증.
 - 디버그 UI에 typed 모델 등록 서비스용 'typed 모델로 파싱' 옵션을 추가했다(`.typed` 뷰 호출).
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 import time
 from collections.abc import Callable
 from typing import Protocol, runtime_checkable
@@ -43,16 +44,18 @@ class TokenBucketRateLimiter:
         self._clock = clock
         self._tokens = self.capacity
         self._last = clock()
+        self._lock = threading.Lock()
 
     def acquire(self) -> float:
-        now = self._clock()
-        elapsed = max(0.0, now - self._last)
-        self._tokens = min(self.capacity, self._tokens + elapsed * self._fill_rate)
-        self._last = now
-        if self._tokens >= 1.0:
-            self._tokens -= 1.0
-            return 0.0
-        wait = (1.0 - self._tokens) / self._fill_rate
-        self._tokens = 0.0
-        self._last = now + wait
-        return wait
+        with self._lock:
+            now = self._clock()
+            elapsed = max(0.0, now - self._last)
+            self._tokens = min(self.capacity, self._tokens + elapsed * self._fill_rate)
+            self._last = now
+            if self._tokens >= 1.0:
+                self._tokens -= 1.0
+                return 0.0
+            wait = (1.0 - self._tokens) / self._fill_rate
+            self._tokens = 0.0
+            self._last = now + wait
+            return wait

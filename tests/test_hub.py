@@ -150,7 +150,7 @@ def test_hub_call_by_service_key_and_operation_alias():
 
     assert page.items[0]["title"] == "캠핑"
     call = session.calls[0]
-    assert call["url"] == "http://apis.data.go.kr/B551011/GoCamping/basedList"
+    assert call["url"] == "https://apis.data.go.kr/B551011/GoCamping/basedList"
     assert call["params"]["serviceKey"] == "KEY"
     assert call["params"]["facltNm"] == "숲"
     assert call["params"]["pageNo"] == 1

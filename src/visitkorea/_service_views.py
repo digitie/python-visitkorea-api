@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Callable, Iterator, Mapping
-from typing import TYPE_CHECKING, Any, cast
+from collections.abc import AsyncIterator, Callable, Iterable, Iterator, Mapping
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from ._convert import strip_or_none, to_float_or_none
-from .exceptions import TourApiRequestError
+from .exceptions import TourApiParseError, TourApiRequestError
 from .models import Page, RawRecord, TourApiModel
 from .service_models import (
     DataLabVisitorItem,
@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from .hub import AsyncTourApiServiceClient, TourApiServiceClient
 
 ItemParser = Callable[[Mapping[str, Any]], TourApiModel]
+_T = TypeVar("_T", bound=TourApiModel)
 
 
 def _gocamping_item(row: Mapping[str, Any]) -> GoCampingItem:
@@ -139,8 +140,31 @@ def require_item_parser(service_key: str) -> ItemParser:
     return parser
 
 
+def _parse_rows(
+    rows: Iterable[Mapping[str, Any]],
+    parser: Callable[[Mapping[str, Any]], _T],
+    *,
+    endpoint: str | None,
+    service_name: str | None,
+) -> tuple[_T, ...]:
+    try:
+        return tuple(parser(row) for row in rows)
+    except (TypeError, ValueError) as exc:
+        raise TourApiParseError(
+            f"{endpoint}: failed to parse item: {exc}",
+            endpoint=endpoint,
+            service_name=service_name,
+            failure_kind="parse",
+        ) from exc
+
+
 def _retype_page(page: Page[RawRecord], parser: ItemParser) -> Page[TourApiModel]:
-    parsed = tuple(parser(row) for row in page.items)
+    parsed = _parse_rows(
+        page.items,
+        parser,
+        endpoint=page.context.endpoint,
+        service_name=page.context.service_name,
+    )
     return cast("Page[TourApiModel]", page.model_copy(update={"items": parsed}))
 
 
@@ -194,6 +218,10 @@ class TypedServiceView:
     def __getattr__(self, name: str) -> Callable[..., Page[TourApiModel]]:
         if name.startswith("_"):
             raise AttributeError(name)
+        try:
+            operation = self._client._resolve_operation(name)
+        except TourApiRequestError as exc:
+            raise AttributeError(name) from exc
 
         def caller(
             params: Mapping[str, Any] | None = None,
@@ -203,7 +231,7 @@ class TypedServiceView:
             **kwargs: Any,
         ) -> Page[TourApiModel]:
             return self.call(
-                name, params=params, page_no=page_no, num_of_rows=num_of_rows, **kwargs
+                operation, params=params, page_no=page_no, num_of_rows=num_of_rows, **kwargs
             )
 
         return caller
@@ -259,6 +287,10 @@ class AsyncTypedServiceView:
     def __getattr__(self, name: str) -> Callable[..., Any]:
         if name.startswith("_"):
             raise AttributeError(name)
+        try:
+            operation = self._client._resolve_operation(name)
+        except TourApiRequestError as exc:
+            raise AttributeError(name) from exc
 
         async def caller(
             params: Mapping[str, Any] | None = None,
@@ -268,7 +300,7 @@ class AsyncTypedServiceView:
             **kwargs: Any,
         ) -> Page[TourApiModel]:
             return await self.call(
-                name, params=params, page_no=page_no, num_of_rows=num_of_rows, **kwargs
+                operation, params=params, page_no=page_no, num_of_rows=num_of_rows, **kwargs
             )
 
         return caller

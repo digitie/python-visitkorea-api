@@ -122,7 +122,10 @@ def clean_tourapi_html(value: str | None) -> str | None:
 
     This helper is intentionally opt-in and does not mutate parsed models or their
     `raw` records. It is not a security sanitizer; apps that render HTML should still
-    run their own sanitizer after any app-specific formatting step.
+    run their own sanitizer after any app-specific formatting step. The returned text
+    is NOT HTML-safe: HTML character references (e.g. `&lt;`) are decoded to their
+    literal characters (e.g. `<`), so this output must be HTML-escaped by the caller
+    before being interpolated into any HTML/markup context.
     """
 
     if value is None:

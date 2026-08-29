@@ -50,7 +50,7 @@ def test_common_request_params_and_endpoint_url(fake_client_factory):
 
     assert page.items == ()
     call = session.calls[0]
-    assert call["url"] == "http://apis.data.go.kr/B551011/KorService2/areaCode2"
+    assert call["url"] == "https://apis.data.go.kr/B551011/KorService2/areaCode2"
     assert call["params"]["serviceKey"] == "TEST_KEY"
     assert call["params"]["MobileOS"] == "WEB"
     assert call["params"]["MobileApp"] == "UnitTest"
