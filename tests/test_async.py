@@ -263,3 +263,29 @@ def test_async_hub_catalog_dynamic_iterators_and_errors():
             _ = hub.kor.missing
 
     asyncio.run(run())
+
+
+def test_async_code_cache_stampede_protection_does_not_leak_locks(fake_async_client_factory):
+    """동시에 같은 code cache key를 요청해도 HTTP 호출은 한 번만 나가야 하고,
+    캐시가 채워진 뒤에는 내부 `_code_cache_locks`에 항목이 남아 있으면 안 된다
+    (남아 있으면 장수명 클라이언트에서 고유 파라미터 조합마다 asyncio.Lock이
+    무한정 누적되는 메모리 누수가 된다).
+    """
+
+    async def run() -> None:
+        cache: dict = {}
+        client, session = fake_async_client_factory(
+            FakeResponse(tour_payload({"code": "1", "name": "서울", "rnum": "1"})),
+            code_cache=cache,
+        )
+
+        first, second = await asyncio.gather(client.area_codes(), client.area_codes())
+        await client.aclose()
+
+        assert first.items[0].code == "1"
+        assert second is first
+        assert len(session.calls) == 1
+        assert len(cache) == 1
+        assert client._code_cache_locks == {}
+
+    asyncio.run(run())

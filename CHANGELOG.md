@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- asyncio 전환 재검증을 위한 2인 적대적 리뷰어 서브에이전트(동시성/자원관리 관점, 보안/데이터
+  무결성 관점) 감사에서 발견·검증된 버그 수정: `AsyncKrTourApiClient._cached_code_page()`의
+  코드 조회 stampede 방지용 `asyncio.Lock`이 캐시가 채워진 뒤에도 `_code_cache_locks` 딕셔너리에
+  계속 남아, 서로 다른 파라미터 조합으로 코드 조회 API(`area_codes`/`category_codes`/
+  `legal_dong_codes`/`classification_system_codes`)를 호출할 때마다 프로세스 수명 동안 무한정
+  누적되던 메모리 누수 수정 — 캐시에 값을 채운 직후 해당 키의 lock을 제거하도록 변경. 두 리뷰어
+  모두 다른 관점(레이트리미터 async-safety, pagination 절단 신호 대칭성, 자격증명 마스킹,
+  result-code 처리)에서는 실제 버그를 찾지 못함(레이트리미터의 `threading.Lock`은 임계 구역에
+  `await`가 없어 단일 이벤트 루프에서 실질적으로 원자적임을 확인; 이 저장소에는
+  `PaginationLimitWarning` 개념 자체가 없어 sibling 저장소(kma)에서 발견된 절단-경고 누락 버그
+  유형이 재현되지 않음을 확인).
 - 4인 전문 리뷰어 서브에이전트의 적대적 코드 리뷰로 발견·검증된 버그 수정: 페이지네이션이 서버가
   echo하는 `pageNo`를 신뢰해 다음 페이지를 계산하다가(`client.py`/`hub.py` 6개 호출부) 값이
   틀리게 오면 같은 페이지를 반복 재요청하거나 조기 종료해 조용히 데이터가 유실되던 문제(로컬에서
