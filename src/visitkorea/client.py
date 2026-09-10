@@ -1307,6 +1307,7 @@ class AsyncKrTourApiClient:
                 return cached
             page = await self._get_page(endpoint, params, _code_item)
             self._code_cache[key] = page
+            self._code_cache_locks.pop(key, None)
             return page
 
     async def _get_page(
