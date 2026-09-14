@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import sys
 from pathlib import Path
@@ -27,6 +28,7 @@ except ModuleNotFoundError as exc:  # pragma: no cover - optional tool
 
 from visitkorea import (
     SERVICE_DEFINITIONS,
+    DebugRun,
     TourApiHubClient,
     get_api_catalog,
     get_api_catalog_entry,
@@ -225,15 +227,7 @@ def _raw_response_tab(
         return
 
     try:
-        hub = TourApiHubClient(service_key, timeout=timeout, service_key_source=key_source)
-        run = hub.debug_fetch(
-            selected["service_id"],
-            selected["operation"],
-            params=params,
-            page_no=options["page_no"],
-            num_of_rows=options["num_of_rows"],
-            use_typed=options["use_typed"],
-        )
+        run = asyncio.run(_fetch_debug(selected, service_key, timeout, key_source, params, options))
     except Exception as exc:  # pragma: no cover - UI 표시
         st.error(str(exc))
         return
@@ -244,6 +238,25 @@ def _raw_response_tab(
     else:
         st.success(f"{len(run.processed or ())} items")
     st.json(jsonable(run.response))
+
+
+async def _fetch_debug(
+    selected: dict[str, Any],
+    service_key: str,
+    timeout: float,
+    key_source: str,
+    params: dict[str, Any],
+    options: dict[str, Any],
+) -> DebugRun:
+    async with TourApiHubClient(service_key, timeout=timeout, service_key_source=key_source) as hub:
+        return await hub.debug_fetch(
+            selected["service_id"],
+            selected["operation"],
+            params=params,
+            page_no=options["page_no"],
+            num_of_rows=options["num_of_rows"],
+            use_typed=options["use_typed"],
+        )
 
 
 def _request_form(

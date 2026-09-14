@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
 from collections.abc import Sequence
 from dataclasses import asdict, is_dataclass
@@ -16,6 +17,10 @@ from .services import get_api_catalog
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    return asyncio.run(_main(argv))
+
+
+async def _main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="visitkorea")
     parser.add_argument(
         "--service-key",
@@ -73,50 +78,50 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(json.dumps(_jsonable(list(get_api_catalog())), ensure_ascii=False, indent=2))
         return 0
 
-    with KrTourApiClient(
+    async with KrTourApiClient(
         service_key=args.service_key,
         mobile_app=args.mobile_app,
         language=args.language,
     ) as client:
         result: Any
         if args.command == "keyword":
-            result = client.search_keyword(
+            result = (await client.search_keyword(
                 args.keyword,
                 content_type_id=args.content_type_id,
                 area_code=args.area_code,
                 sigungu_code=args.sigungu_code,
-            )
+            ))
         elif args.command == "location":
-            result = client.location_based_list(
+            result = (await client.location_based_list(
                 map_x=args.map_x,
                 map_y=args.map_y,
                 radius=args.radius,
                 content_type_id=args.content_type_id,
-            )
+            ))
         elif args.command == "detail":
-            result = client.detail_common(args.content_id)
+            result = (await client.detail_common(args.content_id))
         elif args.command == "pet-detail":
-            result = client.detail_pet_tour(args.content_id)
+            result = (await client.detail_pet_tour(args.content_id))
         elif args.command == "festival":
-            result = client.search_festival(
+            result = (await client.search_festival(
                 args.event_start_date,
                 event_end_date=args.event_end_date,
                 area_code=args.area_code,
                 sigungu_code=args.sigungu_code,
-            )
+            ))
         elif args.command == "stay":
-            result = client.search_stay(
+            result = (await client.search_stay(
                 area_code=args.area_code,
                 sigungu_code=args.sigungu_code,
-            )
+            ))
         elif args.command == "area-based":
-            result = client.area_based_list(
+            result = (await client.area_based_list(
                 content_type_id=args.content_type_id,
                 area_code=args.area_code,
                 sigungu_code=args.sigungu_code,
-            )
+            ))
         else:
-            result = client.area_codes(area_code=args.area_code)
+            result = (await client.area_codes(area_code=args.area_code))
 
     print(json.dumps(_jsonable(result), ensure_ascii=False, indent=2))
     return 0

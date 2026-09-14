@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Callable, Iterable, Iterator, Mapping
+from collections.abc import AsyncIterator, Callable, Iterable, Mapping
 from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from ._convert import strip_or_none, to_float_or_none
-from .exceptions import TourApiParseError, TourApiRequestError
+from ._pagination import iter_paginated_pages
+from ._redact import credential_values, redact_exception, redact_result
+from .exceptions import TourApiError, TourApiParseError, TourApiRequestError
 from .models import Page, RawRecord, TourApiModel
 from .service_models import (
     DataLabVisitorItem,
@@ -18,7 +20,7 @@ from .service_models import (
 )
 
 if TYPE_CHECKING:
-    from .hub import AsyncTourApiServiceClient, TourApiServiceClient
+    from .hub import TourApiServiceClient
 
 ItemParser = Callable[[Mapping[str, Any]], TourApiModel]
 _T = TypeVar("_T", bound=TourApiModel)
@@ -169,78 +171,9 @@ def _retype_page(page: Page[RawRecord], parser: ItemParser) -> Page[TourApiModel
 
 
 class TypedServiceView:
-    """Generic view that parses one service's raw rows into its typed model."""
-
-    def __init__(self, client: TourApiServiceClient, parser: ItemParser) -> None:
-        self._client = client
-        self._parser = parser
-
-    @property
-    def operations(self) -> tuple[str, ...]:
-        return self._client.operations
-
-    def call(
-        self,
-        operation: str,
-        params: Mapping[str, Any] | None = None,
-        *,
-        page_no: int | None = 1,
-        num_of_rows: int | None = 10,
-        **kwargs: Any,
-    ) -> Page[TourApiModel]:
-        page = self._client.call(
-            operation, params=params, page_no=page_no, num_of_rows=num_of_rows, **kwargs
-        )
-        return _retype_page(page, self._parser)
-
-    def iter_pages(
-        self,
-        operation: str,
-        params: Mapping[str, Any] | None = None,
-        *,
-        page_no: int = 1,
-        num_of_rows: int = 10,
-        max_pages: int | None = None,
-        max_items: int | None = None,
-        **kwargs: Any,
-    ) -> Iterator[Page[TourApiModel]]:
-        for page in self._client.iter_pages(
-            operation,
-            params=params,
-            page_no=page_no,
-            num_of_rows=num_of_rows,
-            max_pages=max_pages,
-            max_items=max_items,
-            **kwargs,
-        ):
-            yield _retype_page(page, self._parser)
-
-    def __getattr__(self, name: str) -> Callable[..., Page[TourApiModel]]:
-        if name.startswith("_"):
-            raise AttributeError(name)
-        try:
-            operation = self._client._resolve_operation(name)
-        except TourApiRequestError as exc:
-            raise AttributeError(name) from exc
-
-        def caller(
-            params: Mapping[str, Any] | None = None,
-            *,
-            page_no: int | None = 1,
-            num_of_rows: int | None = 10,
-            **kwargs: Any,
-        ) -> Page[TourApiModel]:
-            return self.call(
-                operation, params=params, page_no=page_no, num_of_rows=num_of_rows, **kwargs
-            )
-
-        return caller
-
-
-class AsyncTypedServiceView:
     """Async generic view that parses one service's raw rows into its typed model."""
 
-    def __init__(self, client: AsyncTourApiServiceClient, parser: ItemParser) -> None:
+    def __init__(self, client: TourApiServiceClient, parser: ItemParser) -> None:
         self._client = client
         self._parser = parser
 
@@ -257,10 +190,25 @@ class AsyncTypedServiceView:
         num_of_rows: int | None = 10,
         **kwargs: Any,
     ) -> Page[TourApiModel]:
-        page = await self._client.call(
-            operation, params=params, page_no=page_no, num_of_rows=num_of_rows, **kwargs
-        )
-        return _retype_page(page, self._parser)
+        try:
+            page = await self._client._call(
+                operation, params=params, page_no=page_no, num_of_rows=num_of_rows, **kwargs
+            )
+            return redact_result(
+                _retype_page(page, self._parser),
+                self._client._http.service_key,
+                *credential_values(params),
+                *credential_values(kwargs),
+            )
+
+        except TourApiError as exc:
+            redact_exception(
+                exc,
+                self._client._http.service_key,
+                *credential_values(params),
+                *credential_values(kwargs),
+            )
+            raise exc from None
 
     async def iter_pages(
         self,
@@ -273,16 +221,27 @@ class AsyncTypedServiceView:
         max_items: int | None = None,
         **kwargs: Any,
     ) -> AsyncIterator[Page[TourApiModel]]:
-        async for page in self._client.iter_pages(
-            operation,
-            params=params,
+        base_params = dict(params or {})
+        base_params.pop("pageNo", None)
+        base_params.pop("numOfRows", None)
+
+        async def get_page(next_page_no: int, page_size: int) -> Page[TourApiModel]:
+            return await self.call(
+                operation,
+                params=base_params,
+                page_no=next_page_no,
+                num_of_rows=page_size,
+                **kwargs,
+            )
+
+        async for page in iter_paginated_pages(
+            get_page,
             page_no=page_no,
             num_of_rows=num_of_rows,
             max_pages=max_pages,
             max_items=max_items,
-            **kwargs,
         ):
-            yield _retype_page(page, self._parser)
+            yield page
 
     def __getattr__(self, name: str) -> Callable[..., Any]:
         if name.startswith("_"):

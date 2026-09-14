@@ -9,7 +9,7 @@
 - [TourAPI 관광데이터 Hub](https://api.visitkorea.or.kr)
 - [한국관광콘텐츠랩 OpenAPI 활용신청 목록](https://api.visitkorea.or.kr/#/useUtilExercises)
 
-공공데이터포털 문서에는 국문 관광정보서비스가 JSON+XML REST API이며, 약 26만 건의 국내 관광정보를 15종 범주로 제공한다고 안내되어 있다. 기본 요청 링크는 `http://apis.data.go.kr/B551011/KorService2/{operation}` 형식이다.
+공공데이터포털 문서에는 국문 관광정보서비스가 JSON+XML REST API이며, 약 26만 건의 국내 관광정보를 15종 범주로 제공한다고 안내되어 있다. 기본 요청 링크는 `https://apis.data.go.kr/B551011/KorService2/{operation}` 형식이다.
 
 `api.visitkorea.or.kr/#/useUtilExercises`의 전체 활용신청 목록은 27개 서비스 ZIP 메뉴얼을 기준으로 `visitkorea.services.SERVICE_DEFINITIONS`에 반영한다. `KrTourApiClient`는 자주 쓰는 `KorService2`용 typed wrapper이고, 나머지 서비스와 모든 operation은 `TourApiHubClient`가 카탈로그 기반 generic wrapper로 제공한다.
 
@@ -24,13 +24,13 @@
 | `pageNo` | 1 이상 |
 | `numOfRows` | 1~1000 |
 
-실 서버 확인 결과 TourAPI 게이트웨이는 기본 Python HTTP 클라이언트 User-Agent에 HTTP 403을 반환할 수 있다. 기본 `build_session()`과 `build_async_session()`은 브라우저 호환 User-Agent를 넣는다. 커스텀 session을 주입할 때도 User-Agent를 유지한다.
+실 서버 확인 결과 TourAPI 게이트웨이는 기본 Python HTTP 클라이언트 User-Agent에 HTTP 403을 반환할 수 있다. 비동기 `build_session()`은 브라우저 호환 User-Agent를 넣는다. 커스텀 session을 주입할 때도 User-Agent를 유지한다.
 
-HTTP 계층은 `httpx` 기반이다. `KrTourApiClient`와 `TourApiHubClient`는 동기 `httpx.Client` 경로를 사용하고, `AsyncKrTourApiClient`와 `AsyncTourApiHubClient`는 `httpx.AsyncClient` 경로를 사용한다. 응답 envelope 파싱, XML 오류 매핑, 서비스키 redaction, provenance 생성 규칙은 동기/비동기에서 동일해야 한다.
+HTTP 계층은 `httpx.AsyncClient` 기반이다. 공개 클라이언트는 비동기 전용이고, 모든 실제 송신은 같은 `AsyncTokenBucket`에서 토큰을 획득한다. 재시도·리디렉션에도 적용하며, Hub 자식 서비스는 버킷과 세션을 공유한다. DTO 파싱 후 공개 결과와 오류·로그의 실제 인증값을 마스킹한다.
 
 ## 구현 endpoint
 
-### Typed KorService2 wrapper
+### KorService2 타입 메서드
 
 | 메서드 | endpoint | 핵심 요청 |
 |---|---|---|
@@ -49,19 +49,25 @@ HTTP 계층은 `httpx` 기반이다. `KrTourApiClient`와 `TourApiHubClient`는 
 | `legal_dong_codes` | `ldongCode2` | `lDongRegnCd`, `lDongListYn` |
 | `classification_system_codes` | `lclsSystmCode2` | `lclsSystm1/2/3`, `lclsSystmListYn` |
 
-### 전체 OpenAPI generic wrapper
+### 전체 OpenAPI 공통 호출
 
 `TourApiHubClient`는 메뉴얼 목록의 서비스명과 operation명을 그대로 사용한다. Python에서는 camelCase operation을 snake_case alias로도 호출할 수 있다.
 
 ```python
+import asyncio
 from visitkorea import TourApiHubClient
 
-hub = TourApiHubClient.from_env()
 
-hub.gocamping.based_list(facltNm="숲")
-hub.photo_gallery.gallery_search_list(galSearchKeyword="서울")
-hub.call("area_resource_demand", "areaTarSvcDemList", baseYm="202509", areaCd="11")
-hub.related_tour.area_based_list(base_ym="202504", area_cd="51", signgu_cd="51130")
+async def main() -> None:
+    async with TourApiHubClient.from_env() as hub:
+
+        (await hub.gocamping.based_list(facltNm="숲"))
+        (await hub.photo_gallery.gallery_search_list(galSearchKeyword="서울"))
+        (await hub.call("area_resource_demand", "areaTarSvcDemList", baseYm="202509", areaCd="11"))
+        (await hub.related_tour.area_based_list(base_ym="202504", area_cd="51", signgu_cd="51130"))
+
+
+asyncio.run(main())
 ```
 
 서비스 key, service name, alias, operation 목록은 `docs/openapi-catalog.md`와 `SERVICE_DEFINITIONS`가 단일 기준이다. 메뉴얼 ZIP 원본은 `.manuals/`에 다운로드해 분석하되 저장소에는 커밋하지 않는다.

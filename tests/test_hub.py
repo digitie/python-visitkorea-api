@@ -91,9 +91,7 @@ def test_catalog_contains_all_manual_services():
 def test_api_catalog_rows_include_dataset_name_and_key_links():
     rows = get_api_catalog()
     kor_keyword = next(
-        row
-        for row in rows
-        if row["service_id"] == "kor" and row["operation"] == "searchKeyword2"
+        row for row in rows if row["service_id"] == "kor" and row["operation"] == "searchKeyword2"
     )
 
     assert len(rows) == 211
@@ -112,7 +110,7 @@ def test_api_catalog_rows_include_dataset_name_and_key_links():
     assert service_key_env_names("api.visitkorea")[0] == "VISITKOREA_API_SERVICE_KEY"
 
 
-def test_all_catalog_operations_are_routable_without_live_api_calls():
+async def test_all_catalog_operations_are_routable_without_live_api_calls():
     total_operations = sum(len(service.operations) for service in SERVICE_DEFINITIONS)
     session = FakeSession([FakeResponse(tour_payload(None)) for _ in range(total_operations)])
     hub = TourApiHubClient("KEY", session=session)
@@ -120,7 +118,7 @@ def test_all_catalog_operations_are_routable_without_live_api_calls():
     for service in SERVICE_DEFINITIONS:
         service_client = hub.service(service.key)
         for operation in service.operations:
-            page = service_client.call(operation, page_no=None, num_of_rows=None)
+            page = await service_client.call(operation, page_no=None, num_of_rows=None)
 
             assert page.items == ()
             call = session.calls[-1]
@@ -142,11 +140,11 @@ def test_hub_from_env_uses_data_go_kr_service_key(monkeypatch: pytest.MonkeyPatc
     assert hub.service_key == "ENVKEY"
 
 
-def test_hub_call_by_service_key_and_operation_alias():
+async def test_hub_call_by_service_key_and_operation_alias():
     session = FakeSession([FakeResponse(tour_payload({"contentid": "1", "title": "캠핑"}))])
     hub = TourApiHubClient("KEY", session=session)
 
-    page = hub.call("gocamping", "based_list", facltNm="숲")
+    page = await hub.call("gocamping", "based_list", facltNm="숲")
 
     assert page.items[0]["title"] == "캠핑"
     call = session.calls[0]
@@ -165,7 +163,7 @@ def test_hub_call_by_service_key_and_operation_alias():
     assert "serviceKey" not in page.context.request_params
 
 
-def test_related_tour_area_based_list_returns_typed_single_item():
+async def test_related_tour_area_based_list_returns_typed_single_item():
     session = FakeSession([FakeResponse(tour_payload(sample_related_tour_item()))])
     hub = TourApiHubClient("KEY", session=session)
 
@@ -173,7 +171,7 @@ def test_related_tour_area_based_list_returns_typed_single_item():
     assert RelatedTourItem.__doc__ is not None
     assert "not legal-dong" in RelatedTourItem.__doc__
 
-    page = hub.related_tour.area_based_list(
+    page = await hub.related_tour.area_based_list(
         base_ym="202504",
         area_cd="51",
         signgu_cd="51130",
@@ -203,7 +201,7 @@ def test_related_tour_area_based_list_returns_typed_single_item():
     assert "serviceKey" not in page.context.request_params
 
 
-def test_related_tour_search_keyword_returns_typed_list_items():
+async def test_related_tour_search_keyword_returns_typed_list_items():
     first = sample_related_tour_item()
     second = sample_related_tour_item() | {
         "rlteTatsCd": "488af5b2e04bba94e29498c4f9a5686d",
@@ -214,7 +212,7 @@ def test_related_tour_search_keyword_returns_typed_list_items():
     session = FakeSession([FakeResponse(tour_payload([first, second]))])
     hub = TourApiHubClient("KEY", session=session)
 
-    page = hub.related_tour.search_keyword(
+    page = await hub.related_tour.search_keyword(
         "뮤지엄산",
         base_ym="202504",
         area_cd="51",
@@ -232,11 +230,11 @@ def test_related_tour_search_keyword_returns_typed_list_items():
     assert call["params"]["numOfRows"] == 2
 
 
-def test_related_tour_generic_call_stays_raw_mapping():
+async def test_related_tour_generic_call_stays_raw_mapping():
     session = FakeSession([FakeResponse(tour_payload(sample_related_tour_item()))])
     hub = TourApiHubClient("KEY", session=session)
 
-    page = hub.call(
+    page = await hub.call(
         "related_tour",
         "area_based_list",
         baseYm="202504",
@@ -248,11 +246,11 @@ def test_related_tour_generic_call_stays_raw_mapping():
     assert page.items[0]["rlteTatsNm"] == "뮤지엄산"
 
 
-def test_hub_dynamic_service_and_operation_methods():
+async def test_hub_dynamic_service_and_operation_methods():
     session = FakeSession([FakeResponse(tour_payload({"galContentId": "A"}))])
     hub = TourApiHubClient("KEY", session=session)
 
-    page = hub.photo.gallery_list(page_no=2, num_of_rows=3, galSearchKeyword="서울")
+    page = await hub.photo.gallery_list(page_no=2, num_of_rows=3, galSearchKeyword="서울")
 
     assert page.page_no == 1
     assert page.items[0]["galContentId"] == "A"
@@ -261,11 +259,11 @@ def test_hub_dynamic_service_and_operation_methods():
     assert session.calls[0]["params"]["numOfRows"] == 3
 
 
-def test_hub_pythonic_param_aliases():
+async def test_hub_pythonic_param_aliases():
     session = FakeSession([FakeResponse(tour_payload({"contentid": "1"}))])
     hub = TourApiHubClient("KEY", session=session)
 
-    hub.kor.detail_common(content_id="1", content_type_id="12")
+    (await hub.kor.detail_common(content_id="1", content_type_id="12"))
 
     params = session.calls[0]["params"]
     assert session.calls[0]["url"].endswith("/KorService2/detailCommon2")
@@ -273,7 +271,7 @@ def test_hub_pythonic_param_aliases():
     assert params["contentTypeId"] == "12"
 
 
-def test_hub_pythonic_enums_dates_and_bools():
+async def test_hub_pythonic_enums_dates_and_bools():
     session = FakeSession(
         [
             FakeResponse(tour_payload({"contentid": "1"})),
@@ -282,13 +280,15 @@ def test_hub_pythonic_enums_dates_and_bools():
     )
     hub = TourApiHubClient("KEY", session=session)
 
-    hub.kor.search_festival(
-        event_start_date=date(2026, 5, 1),
-        event_end_date="20260531",
-        area_code=AreaCode.SEOUL,
-        arrange=Arrange.TITLE_WITH_IMAGE,
+    (
+        await hub.kor.search_festival(
+            event_start_date=date(2026, 5, 1),
+            event_end_date="20260531",
+            area_code=AreaCode.SEOUL,
+            arrange=Arrange.TITLE_WITH_IMAGE,
+        )
     )
-    hub.kor.detail_image(content_id="1", image_yn=True, sub_image_yn=False)
+    (await hub.kor.detail_image(content_id="1", image_yn=True, sub_image_yn=False))
 
     festival_params = session.calls[0]["params"]
     assert festival_params["eventStartDate"] == "20260501"
@@ -380,7 +380,7 @@ def test_operation_schema_covers_catalog_families_and_errors():
         get_operation_schema("kor", "missing")
 
 
-def test_hub_coordinate_alias_expands_to_tourapi_params():
+async def test_hub_coordinate_alias_expands_to_tourapi_params():
     session = FakeSession(
         [
             FakeResponse(tour_payload({"contentid": "1"})),
@@ -389,11 +389,13 @@ def test_hub_coordinate_alias_expands_to_tourapi_params():
     )
     hub = TourApiHubClient("KEY", session=session)
 
-    hub.kor.location_based_list(
-        coordinate=PlaceCoordinate(lat=37.5796, lon=126.9769),
-        radius=1000,
+    (
+        await hub.kor.location_based_list(
+            coordinate=PlaceCoordinate(lat=37.5796, lon=126.9769),
+            radius=1000,
+        )
     )
-    hub.kor.location_based_list(coordinate={"mapX": 127.0, "mapY": 37.5}, radius=500)
+    (await hub.kor.location_based_list(coordinate={"mapX": 127.0, "mapY": 37.5}, radius=500))
 
     params = session.calls[0]["params"]
     assert params["mapX"] == 126.9769
@@ -403,7 +405,7 @@ def test_hub_coordinate_alias_expands_to_tourapi_params():
     assert session.calls[1]["params"]["mapY"] == 37.5
 
 
-def test_hub_iter_pages_increments_page_no_for_generic_call():
+async def test_hub_iter_pages_increments_page_no_for_generic_call():
     session = FakeSession(
         [
             FakeResponse(
@@ -426,14 +428,14 @@ def test_hub_iter_pages_increments_page_no_for_generic_call():
     )
     hub = TourApiHubClient("KEY", session=session)
 
-    pages = list(hub.iter_pages("kor", "area_based_list", num_of_rows=2))
+    pages = [item async for item in hub.iter_pages("kor", "area_based_list", num_of_rows=2)]
 
     assert [page.page_no for page in pages] == [1, 2]
     assert [item["contentid"] for page in pages for item in page.items] == ["1", "2", "3"]
     assert [call["params"]["pageNo"] for call in session.calls] == [1, 2]
 
 
-def test_related_tour_iter_area_based_list_uses_typed_pages_and_guard():
+async def test_related_tour_iter_area_based_list_uses_typed_pages_and_guard():
     first = sample_related_tour_item()
     second = sample_related_tour_item() | {"rlteRank": "2", "rlteTatsNm": "원주소금산출렁다리"}
     session = FakeSession(
@@ -448,15 +450,16 @@ def test_related_tour_iter_area_based_list_uses_typed_pages_and_guard():
     )
     hub = TourApiHubClient("KEY", session=session)
 
-    pages = list(
-        hub.related_tour.iter_area_based_list(
+    pages = [
+        item
+        async for item in hub.related_tour.iter_area_based_list(
             base_ym="202504",
             area_cd="51",
             signgu_cd="51130",
             num_of_rows=1,
             max_pages=2,
         )
-    )
+    ]
 
     assert [page.page_no for page in pages] == [1, 2]
     assert all(isinstance(page.items[0], RelatedTourItem) for page in pages)
@@ -464,13 +467,13 @@ def test_related_tour_iter_area_based_list_uses_typed_pages_and_guard():
     assert [call["params"]["pageNo"] for call in session.calls] == [1, 2]
 
 
-def test_hub_unknown_service_and_operation_errors():
+async def test_hub_unknown_service_and_operation_errors():
     hub = TourApiHubClient("KEY", session=FakeSession([]))
 
     with pytest.raises(TourApiRequestError, match="unknown TourAPI service"):
         hub.service("missing")
     with pytest.raises(TourApiRequestError, match="unknown operation"):
-        hub.service("kor").call("missing")
+        (await hub.service("kor").call("missing"))
     with pytest.raises(AttributeError):
         _ = hub.missing
     with pytest.raises(AttributeError):

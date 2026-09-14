@@ -13,7 +13,7 @@
 pip install -e ".[dev]"
 ```
 
-라이브러리 런타임 의존성은 `httpx`, `pydantic>=2.7`, 로컬 `python-kraddr-base @ file:../python-kraddr-base`, Windows용 `tzdata`입니다. 외부 앱에서 타입 검사를 적극적으로 쓰려면 `src/visitkorea/py.typed`가 포함되어 있으므로 `mypy`나 pyright가 공개 타입을 읽을 수 있습니다.
+라이브러리 런타임 의존성은 `httpx`, `pydantic>=2.7`, GitHub 커밋 `1f3d2ac6c727ae6ad6bc32f8f88fd3f599c6bef6`에 고정된 `python-kraddr-base`, Windows용 `tzdata`입니다. 외부 앱에서 타입 검사를 적극적으로 쓰려면 `src/visitkorea/py.typed`가 포함되어 있으므로 `mypy`나 pyright가 공개 타입을 읽을 수 있습니다.
 
 ## 인증키
 
@@ -54,25 +54,31 @@ Set-Content .env.local 'DATA_GO_KR_SERVICE_KEY=발급받은_decoding_인증키'
 | 새 operation을 빠르게 실험 | `TourApiHubClient.call()` |
 | typed wrapper에 없는 국문 endpoint 직접 호출 | `KrTourApiClient.raw_endpoint()` |
 
-asyncio 기반 애플리케이션에서는 같은 메서드 이름을 `await`로 호출하는 `AsyncKrTourApiClient`와 `AsyncTourApiHubClient`를 사용합니다. 동기 클라이언트와 비동기 클라이언트는 모두 내부적으로 `httpx`를 사용합니다.
+`KrTourApiClient`와 `TourApiHubClient`는 비동기 전용입니다. 모든 네트워크 메서드는 `await`, 페이지 반복은 `async for`, 세션 관리는 `async with`를 사용합니다. 별도 Async 접두사 클래스와 `.aio()`는 제거되었습니다.
 
-## Typed Client 기본 흐름
+## 타입 클라이언트 기본 흐름
 
 ```python
+import asyncio
 from visitkorea import ContentType, KrTourApiClient
 
-client = KrTourApiClient.from_env(mobile_app="my-travel-app")
 
-page = client.search_keyword(
-    "경복궁",
-    content_type_id=ContentType.TOURIST_ATTRACTION,
-    area_code="1",
-    page_no=1,
-    num_of_rows=10,
-)
+async def main() -> None:
+    async with KrTourApiClient.from_env(mobile_app="my-travel-app") as client:
 
-for item in page.items:
-    print(item.content_id, item.title, item.addr1)
+        page = (await client.search_keyword(
+            "경복궁",
+            content_type_id=ContentType.TOURIST_ATTRACTION,
+            area_code="1",
+            page_no=1,
+            num_of_rows=10,
+        ))
+
+        for item in page.items:
+            print(item.content_id, item.title, item.addr1)
+
+
+asyncio.run(main())
 ```
 
 목록 endpoint는 `Page[T]`를 반환합니다. `Page.items`는 항상 tuple이고, TourAPI가 `items.item`을 빈 값, 단일 object, list 중 무엇으로 보내도 내부에서 정규화됩니다.
@@ -80,13 +86,19 @@ for item in page.items:
 비동기 흐름:
 
 ```python
-from visitkorea import AsyncKrTourApiClient, ContentType
+import asyncio
+from visitkorea import KrTourApiClient, ContentType
 
-async with AsyncKrTourApiClient.from_env(mobile_app="my-travel-app") as client:
-    page = await client.search_keyword(
-        "경복궁",
-        content_type_id=ContentType.TOURIST_ATTRACTION,
-    )
+
+async def main() -> None:
+    async with KrTourApiClient.from_env(mobile_app="my-travel-app") as client:
+        page = await client.search_keyword(
+            "경복궁",
+            content_type_id=ContentType.TOURIST_ATTRACTION,
+        )
+
+
+asyncio.run(main())
 ```
 
 ## 국문 typed method 목록
@@ -114,16 +126,27 @@ async with AsyncKrTourApiClient.from_env(mobile_app="my-travel-app") as client:
 목록에서 `content_id`와 `content_type_id`를 얻고 상세 endpoint를 이어 호출합니다.
 
 ```python
-page = client.search_keyword("한옥", content_type_id=ContentType.TOURIST_ATTRACTION)
-item = page.items[0]
+import asyncio
+from visitkorea import ContentType, KrTourApiClient
 
-if item.content_id:
-    detail = client.detail_common(item.content_id)
-    print(detail.title, detail.overview)
 
-if item.content_id and item.content_type_id:
-    intro = client.detail_intro(item.content_id, item.content_type_id)
-    repeat = client.detail_info(item.content_id, item.content_type_id)
+async def main() -> None:
+    async with KrTourApiClient.from_env() as client:
+        page = (await client.search_keyword("한옥", content_type_id=ContentType.TOURIST_ATTRACTION))
+        if not page.items:
+            return
+        item = page.items[0]
+
+        if item.content_id:
+            detail = (await client.detail_common(item.content_id))
+            print(detail.title, detail.overview)
+
+        if item.content_id and item.content_type_id:
+            intro = (await client.detail_intro(item.content_id, item.content_type_id))
+            repeat = (await client.detail_info(item.content_id, item.content_type_id))
+
+
+asyncio.run(main())
 ```
 
 `detail_common()`은 상세 1건이 기대되는 endpoint입니다. TourAPI가 no data를 반환하면 `TourApiNoDataError`를 발생시킵니다. 목록 endpoint의 no data는 빈 `Page`로 다루는 쪽이 외부 앱에서 쓰기 편해서 `page.is_empty`로 확인합니다.
@@ -144,10 +167,19 @@ TourAPI에는 상위 코드가 필요한 하위 코드가 많습니다. 라이�
 코드 값은 먼저 조회한 뒤 사용하는 편이 안전합니다.
 
 ```python
-seoul_sigungu = client.area_codes("1")
-categories = client.category_codes(content_type_id=ContentType.TOURIST_ATTRACTION)
-legal_dongs = client.legal_dong_codes(l_dong_regn_cd="11", list_yn=True)
-classes = client.classification_system_codes(lcls_systm1="AC", list_yn=True)
+import asyncio
+from visitkorea import ContentType, KrTourApiClient
+
+
+async def main() -> None:
+    async with KrTourApiClient.from_env() as client:
+        seoul_sigungu = (await client.area_codes("1"))
+        categories = (await client.category_codes(content_type_id=ContentType.TOURIST_ATTRACTION))
+        legal_dongs = (await client.legal_dong_codes(l_dong_regn_cd="11", list_yn=True))
+        classes = (await client.classification_system_codes(lcls_systm1="AC", list_yn=True))
+
+
+asyncio.run(main())
 ```
 
 ## 좌표 규칙
@@ -155,25 +187,43 @@ classes = client.classification_system_codes(lcls_systm1="AC", list_yn=True)
 TourAPI 원문 이름은 `mapX=경도`, `mapY=위도`입니다. 외부 프로그램에서는 `kraddr.base.PlaceCoordinate`를 직접 쓰세요. `visitkorea`도 같은 클래스를 re-export하며, 기존 `Wgs84Coordinate` 이름은 같은 클래스 alias입니다.
 
 ```python
-from visitkorea import PlaceCoordinate
+import asyncio
+from visitkorea import ContentType, KrTourApiClient
 
-coord = PlaceCoordinate(lat=37.5796, lon=126.9769)
 
-page = client.location_based_list(
-    coordinate=coord,
-    radius=1000,
-    content_type_id=ContentType.TOURIST_ATTRACTION,
-)
+async def main() -> None:
+    async with KrTourApiClient.from_env() as client:
+        from visitkorea import PlaceCoordinate
+
+        coord = PlaceCoordinate(lat=37.5796, lon=126.9769)
+
+        page = (await client.location_based_list(
+            coordinate=coord,
+            radius=1000,
+            content_type_id=ContentType.TOURIST_ATTRACTION,
+        ))
+
+
+asyncio.run(main())
 ```
 
 허용되는 입력:
 
 ```python
-client.location_based_list(coordinate=PlaceCoordinate(lat=37.5796, lon=126.9769), radius=1000)
-client.location_based_list(coordinate=(37.5796, 126.9769), radius=1000)
-client.location_based_list(coordinate={"longitude": 126.9769, "latitude": 37.5796}, radius=1000)
-client.location_based_list(coordinate={"mapX": 126.9769, "mapY": 37.5796}, radius=1000)
-client.location_based_list(map_x=126.9769, map_y=37.5796, radius=1000)
+import asyncio
+from visitkorea import KrTourApiClient, PlaceCoordinate
+
+
+async def main() -> None:
+    async with KrTourApiClient.from_env() as client:
+        (await client.location_based_list(coordinate=PlaceCoordinate(lat=37.5796, lon=126.9769), radius=1000))
+        (await client.location_based_list(coordinate=(37.5796, 126.9769), radius=1000))
+        (await client.location_based_list(coordinate={"longitude": 126.9769, "latitude": 37.5796}, radius=1000))
+        (await client.location_based_list(coordinate={"mapX": 126.9769, "mapY": 37.5796}, radius=1000))
+        (await client.location_based_list(map_x=126.9769, map_y=37.5796, radius=1000))
+
+
+asyncio.run(main())
 ```
 
 튜플은 항상 `(latitude, longitude)` 또는 `(lat, lon)` 순서입니다. GeoJSON, TourAPI 원문, 일부 GIS SDK처럼 `(longitude, latitude)` 순서를 쓰는 도구와 섞을 때는 `coord.latlon`과 `coord.lonlat`을 명시적으로 선택하세요.
@@ -183,12 +233,24 @@ client.location_based_list(map_x=126.9769, map_y=37.5796, radius=1000)
 공개 응답 모델은 Pydantic v2 기반의 frozen model입니다.
 
 ```python
-item = page.items[0]
+import asyncio
+from visitkorea import KrTourApiClient
 
-print(item.title)
-payload = item.model_dump()
-json_text = item.model_dump_json()
-schema = type(item).model_json_schema()
+
+async def main() -> None:
+    async with KrTourApiClient.from_env() as client:
+        page = await client.search_keyword("경복궁", num_of_rows=1)
+        if not page.items:
+            return
+        item = page.items[0]
+
+        print(item.title)
+        payload = item.model_dump()
+        json_text = item.model_dump_json()
+        schema = type(item).model_json_schema()
+
+
+asyncio.run(main())
 ```
 
 모든 모델은 속성 접근을 지원하고, 원문 TourAPI record를 `raw`에 보존합니다. 공식 문서에 없거나 content type마다 달라지는 필드는 먼저 `raw`에서 확인하세요.
@@ -202,19 +264,25 @@ schema = type(item).model_json_schema()
 `TourApiHubClient`는 공식 활용신청 메뉴얼의 서비스 key와 operation을 카탈로그로 갖고 있습니다.
 
 ```python
+import asyncio
 from visitkorea import TourApiHubClient
 
-hub = TourApiHubClient.from_env(mobile_app="my-travel-app")
 
-camping = hub.gocamping.based_list(facltNm="숲")
-photos = hub.photo_gallery.gallery_search_list(galSearchKeyword="서울")
-raw = hub.call("area_resource_demand", "areaTarSvcDemList", baseYm="202509", areaCd="11")
-related = hub.related_tour.search_keyword(
-    "뮤지엄산",
-    base_ym="202504",
-    area_cd="51",
-    signgu_cd="51130",
-)
+async def main() -> None:
+    async with TourApiHubClient.from_env(mobile_app="my-travel-app") as hub:
+
+        camping = (await hub.gocamping.based_list(facltNm="숲"))
+        photos = (await hub.photo_gallery.gallery_search_list(galSearchKeyword="서울"))
+        raw = (await hub.call("area_resource_demand", "areaTarSvcDemList", baseYm="202509", areaCd="11"))
+        related = (await hub.related_tour.search_keyword(
+            "뮤지엄산",
+            base_ym="202504",
+            area_cd="51",
+            signgu_cd="51130",
+        ))
+
+
+asyncio.run(main())
 ```
 
 operation은 원문 이름과 snake_case alias를 모두 지원합니다.
@@ -222,22 +290,37 @@ operation은 원문 이름과 snake_case alias를 모두 지원합니다.
 비동기 Hub도 같은 카탈로그와 alias를 사용합니다.
 
 ```python
-from visitkorea import AsyncTourApiHubClient
+import asyncio
+from visitkorea import TourApiHubClient
 
-async with AsyncTourApiHubClient.from_env(mobile_app="my-travel-app") as hub:
-    camping = await hub.gocamping.based_list(facltNm="숲")
-    related = await hub.related_tour.search_keyword(
-        "뮤지엄산",
-        base_ym="202504",
-        area_cd="51",
-        signgu_cd="51130",
-    )
+
+async def main() -> None:
+    async with TourApiHubClient.from_env(mobile_app="my-travel-app") as hub:
+        camping = await hub.gocamping.based_list(facltNm="숲")
+        related = await hub.related_tour.search_keyword(
+            "뮤지엄산",
+            base_ym="202504",
+            area_cd="51",
+            signgu_cd="51130",
+        )
+
+
+asyncio.run(main())
 ```
 
 ```python
-hub.gocamping.based_list()
-hub.gocamping.call("basedList")
-hub.call("gocamping", "basedList")
+import asyncio
+from visitkorea import TourApiHubClient
+
+
+async def main() -> None:
+    async with TourApiHubClient.from_env() as hub:
+        (await hub.gocamping.based_list())
+        (await hub.gocamping.call("basedList"))
+        (await hub.call("gocamping", "basedList"))
+
+
+asyncio.run(main())
 ```
 
 Python식 파라미터 alias:
@@ -261,12 +344,21 @@ Python식 파라미터 alias:
 Hub 서비스의 `.typed` 뷰는 generic 응답 row를 서비스별 typed 모델로 파싱해 `Page[모델]`로 돌려줍니다. 기존 generic 호출(`hub.gocamping.based_list(...)`)은 그대로 `Page[Mapping]`을 반환합니다.
 
 ```python
-camping = hub.gocamping.typed.based_list(facltNm="숲")        # Page[GoCampingItem]
-courses = hub.durunubi.typed.course_list()                    # Page[DurunubiCourseItem]
-visitors = hub.datalab.typed.call("metcoRegnVisitrDDList", base_ym="202605")
+import asyncio
+from visitkorea import TourApiHubClient
 
-for page in hub.gocamping.typed.iter_pages("basedList", num_of_rows=100, max_pages=10):
-    store(page.items)
+
+async def main() -> None:
+    async with TourApiHubClient.from_env() as hub:
+        camping = (await hub.gocamping.typed.based_list(facltNm="숲"))        # Page[GoCampingItem]
+        courses = (await hub.durunubi.typed.course_list())                    # Page[DurunubiCourseItem]
+        visitors = (await hub.datalab.typed.call("metcoRegnVisitrDDList", base_ym="202605"))
+
+        async for page in hub.gocamping.typed.iter_pages("basedList", num_of_rows=100, max_pages=10):
+            print(page.items)
+
+
+asyncio.run(main())
 ```
 
 typed 모델이 등록된 서비스: `gocamping`(`GoCampingItem`), `durunubi`(`DurunubiCourseItem`), `datalab`(`DataLabVisitorItem`), `odii`(`OdiiItem`), `medical`(`MedicalTourItem`), `wellness`(`WellnessTourItem`). 등록되지 않은 서비스의 `.typed`는 `TourApiRequestError`를 냅니다. typed 필드명은 매뉴얼 기준이며, 안정성 확인 전까지 `raw`가 단일 기준입니다.
@@ -276,42 +368,69 @@ typed 모델이 등록된 서비스: `gocamping`(`GoCampingItem`), `durunubi`(`D
 TourAPI 게이트웨이는 일시적인 HTTP 429/5xx를 반환할 수 있습니다. 기본값은 상태 코드 재시도를 하지 않지만(기존 동작 유지) `max_retries`로 켤 수 있습니다. 재시도는 지수 백오프(jitter)로 동작하며 응답에 `Retry-After`가 있으면 우선합니다.
 
 ```python
-from visitkorea import KrTourApiClient, TokenBucketRateLimiter
+import asyncio
+from visitkorea import KrTourApiClient, AsyncTokenBucket
 
-client = KrTourApiClient.from_env(
-    max_retries=3,                                          # 429/5xx, 일시적 연결 오류 재시도
-    backoff_factor=0.5,                                     # 0.5, 1.0, 2.0초 ... (max_backoff 상한)
-    rate_limiter=TokenBucketRateLimiter(rate=5, per=1.0),  # 초당 5회 제한
-    code_cache={},                                          # area/ldong/lcls/category 코드 캐시
-)
+
+async def main() -> None:
+    async with KrTourApiClient.from_env(
+        max_retries=3,                                          # 429/5xx, 일시적 연결 오류 재시도
+        backoff_factor=0.5,                                     # 0.5, 1.0, 2.0초 ... (max_backoff 상한)
+        rate_limiter=AsyncTokenBucket(max_rps=5),  # 초당 5회 제한
+        code_cache={},                                          # area/ldong/lcls/category 코드 캐시
+    ) as client:
+        pass
+
+
+asyncio.run(main())
 ```
 
-`rate_limiter`는 동기/비동기, typed/Hub 클라이언트에서 모두 동작합니다. `timeout`은 `float` 또는 `httpx.Timeout`을 받습니다. 요청 로그는 `logging.getLogger("visitkorea.http")`에서 DEBUG 레벨로 확인할 수 있고 serviceKey는 남지 않습니다.
+`rate_limiter`는 typed/Hub 클라이언트에서 같은 비동기 버킷을 공유할 수 있습니다. `timeout`은 `float` 또는 `httpx.Timeout`을 받습니다. 요청 로그는 `logging.getLogger("visitkorea.http")`에서 DEBUG 레벨로 확인할 수 있고 serviceKey는 남지 않습니다.
 
 ## 페이지 반복
 
 `Page.has_next_page`와 `Page.next_page_no`는 `total_count`, `page_no`, `num_of_rows`를 기준으로 다음 페이지 여부를 계산합니다. 코드 캐시나 후보 조회처럼 여러 페이지를 읽어야 하는 흐름에서는 `iter_pages()`를 사용할 수 있습니다.
 
 ```python
-for page in client.iter_pages(client.area_codes, num_of_rows=100, max_pages=20):
-    for code in page.items:
-        ...
+import asyncio
+from visitkorea import KrTourApiClient, TourApiHubClient
 
-for page in hub.iter_pages("kor", "areaCode2", num_of_rows=100, max_pages=20):
-    for row in page.items:
-        ...
+
+async def main() -> None:
+    async with TourApiHubClient.from_env() as hub:
+        async with KrTourApiClient.from_env() as client:
+            async for page in client.iter_pages(client.area_codes, num_of_rows=100, max_pages=20):
+                for code in page.items:
+                    ...
+
+            async for page in hub.iter_pages("kor", "areaCode2", num_of_rows=100, max_pages=20):
+                for row in page.items:
+                    ...
+
+
+asyncio.run(main())
 ```
 
 async 클라이언트에서는 `async for`를 사용합니다.
 
 ```python
-async for page in client.iter_pages(client.area_codes, num_of_rows=100, max_pages=20):
-    for code in page.items:
-        ...
+import asyncio
+from visitkorea import KrTourApiClient, TourApiHubClient
 
-async for page in hub.iter_pages("kor", "areaCode2", num_of_rows=100, max_pages=20):
-    for row in page.items:
-        ...
+
+async def main() -> None:
+    async with TourApiHubClient.from_env() as hub:
+        async with KrTourApiClient.from_env() as client:
+            async for page in client.iter_pages(client.area_codes, num_of_rows=100, max_pages=20):
+                for code in page.items:
+                    ...
+
+            async for page in hub.iter_pages("kor", "areaCode2", num_of_rows=100, max_pages=20):
+                for row in page.items:
+                    ...
+
+
+asyncio.run(main())
 ```
 
 `max_pages` 또는 `max_items`를 지정하면 비정상 응답으로 인한 긴 반복을 제한할 수 있습니다. 목록 API의 `NO_DATA` 응답은 빈 iterator로 끝나며, 인증/쿼터/서버 오류는 기존 typed exception으로 그대로 올라옵니다.
@@ -319,15 +438,24 @@ async for page in hub.iter_pages("kor", "areaCode2", num_of_rows=100, max_pages=
 `related_tour` typed helper는 endpoint별 iterator도 제공합니다.
 
 ```python
-for page in hub.related_tour.iter_search_keyword(
-    "뮤지엄산",
-    base_ym="202504",
-    area_cd="51",
-    signgu_cd="51130",
-    max_pages=10,
-):
-    for item in page.items:
-        ...
+import asyncio
+from visitkorea import TourApiHubClient
+
+
+async def main() -> None:
+    async with TourApiHubClient.from_env() as hub:
+        async for page in hub.related_tour.iter_search_keyword(
+            "뮤지엄산",
+            base_ym="202504",
+            area_cd="51",
+            signgu_cd="51130",
+            max_pages=10,
+        ):
+            for item in page.items:
+                ...
+
+
+asyncio.run(main())
 ```
 
 ## 다국어 서비스
@@ -335,9 +463,17 @@ for page in hub.related_tour.iter_search_keyword(
 `KrTourApiClient`는 `language=`로 같은 endpoint 계열의 다국어 서비스를 선택할 수 있습니다.
 
 ```python
+import asyncio
+from visitkorea import KrTourApiClient
 from visitkorea import Language
 
-client = KrTourApiClient.from_env(language=Language.ENGLISH)
+
+async def main() -> None:
+    async with KrTourApiClient.from_env(language=Language.ENGLISH) as client:
+        pass
+
+
+asyncio.run(main())
 ```
 
 지원 값은 `ko`, `en`, `ja`/`jp`, `zh-cn`/`zh`, `zh-tw`, `de`, `fr`, `es`, `ru`입니다. 다만 공공데이터포털에서 해당 언어 서비스를 따로 활용신청하지 않은 인증키는 HTTP 403 또는 인증 오류가 날 수 있습니다. 이 경우 라이브러리는 `TourApiAuthError`로 매핑합니다.
@@ -345,23 +481,32 @@ client = KrTourApiClient.from_env(language=Language.ENGLISH)
 ## 예외 처리
 
 ```python
-from visitkorea import (
-    TourApiAuthError,
-    TourApiError,
-    TourApiNoDataError,
-    TourApiRateLimitError,
-)
+import asyncio
+from visitkorea import KrTourApiClient
 
-try:
-    page = client.search_keyword("경복궁")
-except TourApiAuthError:
-    raise RuntimeError("TourAPI 인증키 또는 활용신청 상태를 확인하세요.")
-except TourApiRateLimitError:
-    raise RuntimeError("호출 한도 또는 트래픽 제한에 도달했습니다.")
-except TourApiNoDataError:
-    page = None
-except TourApiError as exc:
-    raise RuntimeError(f"TourAPI 호출 실패: {exc}") from exc
+
+async def main() -> None:
+    async with KrTourApiClient.from_env() as client:
+        from visitkorea import (
+            TourApiAuthError,
+            TourApiError,
+            TourApiNoDataError,
+            TourApiRateLimitError,
+        )
+
+        try:
+            page = (await client.search_keyword("경복궁"))
+        except TourApiAuthError:
+            raise RuntimeError("TourAPI 인증키 또는 활용신청 상태를 확인하세요.")
+        except TourApiRateLimitError:
+            raise RuntimeError("호출 한도 또는 트래픽 제한에 도달했습니다.")
+        except TourApiNoDataError:
+            page = None
+        except TourApiError as exc:
+            raise RuntimeError(f"TourAPI 호출 실패: {exc}") from exc
+
+
+asyncio.run(main())
 ```
 
 예외 계층:
@@ -379,16 +524,29 @@ TourApiError
 모든 `TourApiError` 계열 예외에는 관리자 로그용 metadata가 optional 속성으로 들어갑니다. 기존 subclass catch 동작은 그대로 유지되므로 `except TourApiAuthError` 같은 분기는 바꾸지 않아도 됩니다.
 
 ```python
-except TourApiError as exc:
-    logger.warning("tourapi_failed", extra={"tourapi": exc.metadata})
-    user_message = {
-        "auth": "TourAPI 인증 설정을 확인하세요.",
-        "rate_limit": "TourAPI 호출 한도에 도달했습니다.",
-        "no_data": "조회 가능한 관광정보가 없습니다.",
-        "server": "TourAPI 서버 응답이 불안정합니다.",
-        "request": "검색 조건을 다시 확인하세요.",
-        "parse": "TourAPI 응답을 해석하지 못했습니다.",
-    }.get(exc.failure_kind, "TourAPI 호출에 실패했습니다.")
+import asyncio
+import logging
+from visitkorea import KrTourApiClient, TourApiError
+
+
+async def main() -> None:
+    logger = logging.getLogger(__name__)
+    async with KrTourApiClient.from_env() as client:
+        try:
+            await client.search_keyword("경복궁")
+        except TourApiError as exc:
+            logger.warning("tourapi_failed", extra={"tourapi": exc.metadata})
+            user_message = {
+                "auth": "TourAPI 인증 설정을 확인하세요.",
+                "rate_limit": "TourAPI 호출 한도에 도달했습니다.",
+                "no_data": "조회 가능한 관광정보가 없습니다.",
+                "server": "TourAPI 서버 응답이 불안정합니다.",
+                "request": "검색 조건을 다시 확인하세요.",
+                "parse": "TourAPI 응답을 해석하지 못했습니다.",
+            }.get(exc.failure_kind, "TourAPI 호출에 실패했습니다.")
+
+
+asyncio.run(main())
 ```
 
 `exc.metadata`에는 `result_code`, `status_code`, `endpoint`, `service_name`, `failure_kind`가 들어갑니다. `serviceKey` 원문은 예외 문자열, `repr`, metadata 어디에도 남기지 않습니다.
@@ -443,3 +601,36 @@ API 동작이나 public type을 바꿀 때는 README만 고치지 말고 관련 
 - 반복 실수와 guardrail: `docs/repeated-mistakes.md`
 
 반복 실수를 발견하면 증상, 원인, 규칙, 가드레일 테스트를 `docs/repeated-mistakes.md`에 남깁니다.
+
+## 비동기 호출과 공통 TPS 계약
+
+기존 동기 호출을 `await`로 바꾸고 `with`/`for`를 각각 `async with`/`async for`로 바꿉니다. `AsyncKrTourApiClient`, `AsyncTourApiHubClient`, `.aio()` 및 동기 `TokenBucketRateLimiter`는 제거되었습니다. 기존 `TourApiClient`는 `KrTourApiClient`와 같은 클래스입니다. 모델 변환·좌표·카탈로그·표시용 보조 함수는 네트워크를 사용하지 않아 동기로 유지합니다.
+
+클라이언트의 기본 `max_rps=5`는 초당 토큰 보충량입니다. 기본 버킷은 `max(1, max_rps)`개로 시작하므로 초기 버스트가 있습니다. 간격을 두어 전송하려면 `AsyncTokenBucket(max_rps=5, capacity=1)`을 주입합니다. `max_rps`는 유한한 양수, `capacity`는 유한한 1 이상이어야 하며 bool은 허용하지 않습니다. 버킷과 클라이언트는 하나의 이벤트 루프에서 사용합니다.
+
+```python
+import asyncio
+from visitkorea import AsyncTokenBucket, KrTourApiClient, TourApiHubClient
+
+async def main() -> None:
+    limiter = AsyncTokenBucket(max_rps=5, capacity=1)
+    async with KrTourApiClient.from_env(rate_limiter=limiter) as client:
+        async with TourApiHubClient.from_env(rate_limiter=limiter) as hub:
+            codes, camping = await asyncio.gather(
+                client.area_codes(num_of_rows=1),
+                hub.gocamping.based_list(num_of_rows=1),
+            )
+            print(len(codes.items), len(camping.items))
+
+asyncio.run(main())
+```
+
+Hub의 모든 서비스는 같은 세션과 버킷을 공유합니다. 최초 GET, 연결 재시도, 상태 코드 재시도, 리디렉션 각각 송신 직전에 토큰을 획득합니다. 대기 취소는 토큰을 소비하지 않습니다. 캐시 적중은 네트워크 요청이 없으며 토큰을 쓰지 않습니다. 코드 캐시는 동일 요청의 동시 조회를 합치고 실패·취소 후 잠금이 남지 않습니다.
+
+`retries=3`은 연결 오류/연결 타임아웃 추가 재시도 수이며 첫 대기 0초, 이후 0.5초부터 증가합니다. `max_retries=0`은 바깥 재시도 기본값입니다. 이를 늘리면 전송 오류와 429/500/502/503/504를 제한적으로 재시도하며 `Retry-After`와 백오프 상한을 적용합니다. 각 바깥 시도에 연결 재시도 한도가 적용되어 연결 오류의 최대 송신 수는 `(max_retries + 1) * (retries + 1)`입니다. HTTP 401/403은 재시도하지 않습니다. TPS는 서버의 일일 한도나 서비스 활용신청 권한을 대신하지 않습니다.
+
+`async with` 또는 `await client.aclose()`로 자체 생성 세션을 닫습니다. 주입한 `httpx.AsyncClient`는 호출자가 닫습니다. 종료 후 캐시 조회와 보관해 둔 Hub 자식 호출도 거부합니다. 토큰 대기 전후로 종료 여부와 인증 설정을 검사합니다. HTTPX 세션 인증은 인증 없음과 BasicAuth를 지원하며 추가 송신을 만드는 Digest/custom Auth는 거부합니다. 주입한 사용자 전송 계층이 내부적으로 재시도하는 경우 라이브러리가 그 송신까지 계측할 수 없으므로 자동 재시도가 없는 전송 계층을 사용해야 합니다.
+
+응답은 원문으로 모델 파싱을 완료한 뒤 공개 결과의 인증 문자열을 마스킹합니다. 숫자·시간 필드의 타입과 값은 유지하며, `raw`, `context`, 오류·디버그 결과·HTTPX 로그에 반사된 실제 인증값은 제거합니다. 인증키 값과 우연히 일치하는 일반 문자열 부분도 마스킹될 수 있습니다.
+
+`from_env(name=..., fallback_names=..., env_file_paths=...)`와 `service_key_source`는 유지합니다. 기본 dotenv 파일은 `.env`이며 `.env.local`은 `env_file_paths=(".env.local",)`로 지정하거나 라이브 테스트 스크립트를 사용합니다. CLI와 Streamlit 디버그 UI는 호출별 이벤트 루프 안에서 클라이언트를 생성하고 종료합니다.

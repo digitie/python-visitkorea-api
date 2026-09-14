@@ -66,10 +66,10 @@ def test_page_next_page_helpers_use_pagination_metadata():
     assert page.next_page_no == 3
 
 
-def test_search_keyword_sends_filters_and_parses_item(fake_client_factory):
+async def test_search_keyword_sends_filters_and_parses_item(fake_client_factory):
     client, session = fake_client_factory(FakeResponse(tour_payload(sample_tour_item())))
 
-    page = client.search_keyword(
+    page = await client.search_keyword(
         "궁",
         content_type_id=ContentType.TOURIST_ATTRACTION,
         l_dong_regn_cd="11",
@@ -115,13 +115,15 @@ def test_search_keyword_sends_filters_and_parses_item(fake_client_factory):
         item.title = "changed"  # type: ignore[misc]
 
 
-def test_festival_dates_are_normalized(fake_client_factory):
+async def test_festival_dates_are_normalized(fake_client_factory):
     client, session = fake_client_factory(FakeResponse(tour_payload([])))
 
-    client.search_festival(
-        date(2026, 4, 30),
-        event_end_date="20260501",
-        modified_time=date(2026, 4, 1),
+    (
+        await client.search_festival(
+            date(2026, 4, 30),
+            event_end_date="20260501",
+            modified_time=date(2026, 4, 1),
+        )
     )
 
     params = session.calls[0]["params"]
@@ -131,7 +133,7 @@ def test_festival_dates_are_normalized(fake_client_factory):
     assert params["modifiedtime"] == "20260401"
 
 
-def test_search_festival_parses_event_dates_into_item(fake_client_factory):
+async def test_search_festival_parses_event_dates_into_item(fake_client_factory):
     festival_row = sample_tour_item() | {
         "contentid": "999",
         "contenttypeid": "15",
@@ -140,7 +142,7 @@ def test_search_festival_parses_event_dates_into_item(fake_client_factory):
     }
     client, _session = fake_client_factory(FakeResponse(tour_payload(festival_row)))
 
-    page = client.search_festival(date(2026, 5, 1))
+    page = await client.search_festival(date(2026, 5, 1))
 
     item = page.items[0]
     assert item.event_start_date == "20260501"
@@ -150,14 +152,14 @@ def test_search_festival_parses_event_dates_into_item(fake_client_factory):
     assert item.homepage is None
 
 
-def test_tour_item_fills_overview_homepage_when_present_in_raw(fake_client_factory):
+async def test_tour_item_fills_overview_homepage_when_present_in_raw(fake_client_factory):
     row = sample_tour_item() | {
         "overview": "상세 설명 텍스트",
         "homepage": '<a href="https://example.com">홈페이지</a>',
     }
     client, _session = fake_client_factory(FakeResponse(tour_payload(row)))
 
-    page = client.search_keyword("궁")
+    page = await client.search_keyword("궁")
 
     item = page.items[0]
     assert item.overview == "상세 설명 텍스트"
@@ -166,16 +168,16 @@ def test_tour_item_fills_overview_homepage_when_present_in_raw(fake_client_facto
     assert item.event_start_date is None
 
 
-def test_area_location_and_stay_endpoints(fake_client_factory):
+async def test_area_location_and_stay_endpoints(fake_client_factory):
     client, session = fake_client_factory(
         FakeResponse(tour_payload([])),
         FakeResponse(tour_payload([])),
         FakeResponse(tour_payload([])),
     )
 
-    client.area_based_list(area_code=AreaCode.SEOUL, num_of_rows=5)
-    client.location_based_list(map_x=126.9, map_y=37.5, radius=500)
-    client.search_stay(area_code=AreaCode.SEOUL)
+    (await client.area_based_list(area_code=AreaCode.SEOUL, num_of_rows=5))
+    (await client.location_based_list(map_x=126.9, map_y=37.5, radius=500))
+    (await client.search_stay(area_code=AreaCode.SEOUL))
 
     assert session.calls[0]["url"].endswith("/areaBasedList2")
     assert session.calls[0]["params"]["areaCode"] == "1"
@@ -186,22 +188,24 @@ def test_area_location_and_stay_endpoints(fake_client_factory):
     assert session.calls[2]["url"].endswith("/searchStay2")
 
 
-def test_location_radius_validation(fake_client_factory):
+async def test_location_radius_validation(fake_client_factory):
     client, _session = fake_client_factory(FakeResponse(tour_payload([])))
 
     with pytest.raises(ValueError, match="radius"):
-        client.location_based_list(map_x=126.9, map_y=37.5, radius=20001)
+        (await client.location_based_list(map_x=126.9, map_y=37.5, radius=20001))
     with pytest.raises(ValueError, match="coordinate"):
-        client.location_based_list(radius=100)
+        (await client.location_based_list(radius=100))
     with pytest.raises(ValueError, match="cannot be combined"):
-        client.location_based_list(
-            coordinate=PlaceCoordinate(lat=37.5, lon=126.9),
-            map_x=126.9,
-            radius=100,
+        (
+            await client.location_based_list(
+                coordinate=PlaceCoordinate(lat=37.5, lon=126.9),
+                map_x=126.9,
+                radius=100,
+            )
         )
 
 
-def test_location_accepts_standard_coordinate_inputs(fake_client_factory):
+async def test_location_accepts_standard_coordinate_inputs(fake_client_factory):
     client, session = fake_client_factory(
         FakeResponse(tour_payload([])),
         FakeResponse(tour_payload([])),
@@ -209,13 +213,19 @@ def test_location_accepts_standard_coordinate_inputs(fake_client_factory):
         FakeResponse(tour_payload([])),
     )
 
-    client.location_based_list(
-        coordinate=PlaceCoordinate(lat=37.5796, lon=126.9769),
-        radius=1000,
+    (
+        await client.location_based_list(
+            coordinate=PlaceCoordinate(lat=37.5796, lon=126.9769),
+            radius=1000,
+        )
     )
-    client.location_based_list(coordinate=(37.5, 127.0), radius=1000)
-    client.location_based_list(coordinate={"longitude": 127.1, "latitude": 37.6}, radius=1000)
-    client.location_based_list(coordinate={"mapX": 127.2, "mapY": 37.7}, radius=1000)
+    (await client.location_based_list(coordinate=(37.5, 127.0), radius=1000))
+    (
+        await client.location_based_list(
+            coordinate={"longitude": 127.1, "latitude": 37.6}, radius=1000
+        )
+    )
+    (await client.location_based_list(coordinate={"mapX": 127.2, "mapY": 37.7}, radius=1000))
 
     assert session.calls[0]["params"]["mapX"] == 126.9769
     assert session.calls[0]["params"]["mapY"] == 37.5796
@@ -224,59 +234,59 @@ def test_location_accepts_standard_coordinate_inputs(fake_client_factory):
     assert session.calls[3]["params"]["mapX"] == 127.2
 
 
-def test_more_client_validation(fake_client_factory):
+async def test_more_client_validation(fake_client_factory):
     client, _session = fake_client_factory(FakeResponse(tour_payload([])))
 
     with pytest.raises(ValueError, match="keyword"):
-        client.search_keyword(" ")
+        (await client.search_keyword(" "))
     with pytest.raises(ValueError, match="content_id"):
-        client.detail_common("")
+        (await client.detail_common(""))
     with pytest.raises(ValueError, match="content_id"):
-        client.detail_images("")
+        (await client.detail_images(""))
     with pytest.raises(ValueError, match="show_flag"):
-        client.area_based_sync_list(show_flag="Y")
+        (await client.area_based_sync_list(show_flag="Y"))
     with pytest.raises(ValueError, match="page_no"):
-        client.area_codes(page_no=0)
+        (await client.area_codes(page_no=0))
     with pytest.raises(ValueError, match="num_of_rows"):
-        client.area_codes(num_of_rows=1001)
+        (await client.area_codes(num_of_rows=1001))
     with pytest.raises(TourApiRequestError, match="cat2"):
-        client.category_codes(cat2="A0201")
+        (await client.category_codes(cat2="A0201"))
     with pytest.raises(TourApiRequestError, match="lcls_systm3"):
-        client.classification_system_codes(lcls_systm1="HS", lcls_systm3="HS010100")
+        (await client.classification_system_codes(lcls_systm1="HS", lcls_systm3="HS010100"))
     with pytest.raises(ValueError, match="content_id"):
-        client.detail_intro("", "12")
+        (await client.detail_intro("", "12"))
 
 
-def test_dependent_filter_validation(fake_client_factory):
+async def test_dependent_filter_validation(fake_client_factory):
     client, _session = fake_client_factory(FakeResponse(tour_payload([])))
 
     with pytest.raises(TourApiRequestError, match="sigungu_code"):
-        client.area_based_list(sigungu_code="23")
+        (await client.area_based_list(sigungu_code="23"))
     with pytest.raises(TourApiRequestError, match="cat3"):
-        client.area_based_list(cat1="A02", cat3="A02010100")
+        (await client.area_based_list(cat1="A02", cat3="A02010100"))
     with pytest.raises(TourApiRequestError, match="l_dong_signgu_cd"):
-        client.area_based_list(l_dong_signgu_cd="110")
+        (await client.area_based_list(l_dong_signgu_cd="110"))
     with pytest.raises(TourApiRequestError, match="lcls_systm2"):
-        client.area_based_list(lcls_systm2="HS01")
+        (await client.area_based_list(lcls_systm2="HS01"))
 
 
-def test_detail_common_raises_no_data_for_empty_detail(fake_client_factory):
+async def test_detail_common_raises_no_data_for_empty_detail(fake_client_factory):
     client, _session = fake_client_factory(
         FakeResponse(tour_payload(None, result_code="03", result_msg="NO_DATA")),
     )
 
     with pytest.raises(TourApiNoDataError):
-        client.detail_common("missing")
+        (await client.detail_common("missing"))
 
 
-def test_detail_common_parses_detail(fake_client_factory):
+async def test_detail_common_parses_detail(fake_client_factory):
     row = sample_tour_item() | {
         "homepage": "<a href='https://example.com'>홈</a>",
         "overview": "설명",
     }
     client, _session = fake_client_factory(FakeResponse(tour_payload(row)))
 
-    detail = client.detail_common("126508")
+    detail = await client.detail_common("126508")
 
     assert detail.content_id == "126508"
     assert detail.homepage is not None
@@ -289,7 +299,7 @@ def test_detail_common_parses_detail(fake_client_factory):
     assert "serviceKey" not in detail.context.request_params
 
 
-def test_detail_intro_info_and_images(fake_client_factory):
+async def test_detail_intro_info_and_images(fake_client_factory):
     intro = {"contentid": "1", "contenttypeid": "12", "infocenter": "안내"}
     repeat = {
         "contentid": "1",
@@ -313,9 +323,9 @@ def test_detail_intro_info_and_images(fake_client_factory):
         FakeResponse(tour_payload(image)),
     )
 
-    intro_page = client.detail_intro("1", ContentType.TOURIST_ATTRACTION)
-    repeat_page = client.detail_info("1", "25")
-    image_page = client.detail_images("1", image_yn=True, sub_image_yn=False)
+    intro_page = await client.detail_intro("1", ContentType.TOURIST_ATTRACTION)
+    repeat_page = await client.detail_info("1", "25")
+    image_page = await client.detail_images("1", image_yn=True, sub_image_yn=False)
 
     assert intro_page.items[0].raw["infocenter"] == "안내"
     assert repeat_page.items[0].info_name == "코스"
@@ -327,7 +337,7 @@ def test_detail_intro_info_and_images(fake_client_factory):
     assert session.calls[2]["params"]["subImageYN"] == "N"
 
 
-def test_detail_pet_tour_parses_typed_fields(fake_client_factory):
+async def test_detail_pet_tour_parses_typed_fields(fake_client_factory):
     row = {
         "contentid": "126508",
         "contenttypeid": "12",
@@ -341,7 +351,7 @@ def test_detail_pet_tour_parses_typed_fields(fake_client_factory):
     }
     client, session = fake_client_factory(FakeResponse(tour_payload(row)))
 
-    page = client.detail_pet_tour("126508")
+    page = await client.detail_pet_tour("126508")
 
     item = page.items[0]
     assert item.content_id == "126508"
@@ -357,10 +367,10 @@ def test_detail_pet_tour_parses_typed_fields(fake_client_factory):
     assert page.context.endpoint == "detailPetTour2"
 
     with pytest.raises(ValueError, match="content_id"):
-        client.detail_pet_tour("")
+        (await client.detail_pet_tour(""))
 
 
-def test_sync_and_code_endpoints(fake_client_factory):
+async def test_sync_and_code_endpoints(fake_client_factory):
     client, session = fake_client_factory(
         FakeResponse(tour_payload(sample_tour_item())),
         FakeResponse(tour_payload({"code": "1", "name": "서울", "rnum": "1"})),
@@ -368,10 +378,10 @@ def test_sync_and_code_endpoints(fake_client_factory):
         FakeResponse(tour_payload({"lclsSystm1Cd": "HS", "lclsSystm1Nm": "역사관광"})),
     )
 
-    sync_page = client.area_based_sync_list(show_flag="1", area_code="1", sigungu_code="23")
-    area_page = client.area_codes()
-    legal_page = client.legal_dong_codes(list_yn=True)
-    lcls_page = client.classification_system_codes(list_yn=True)
+    sync_page = await client.area_based_sync_list(show_flag="1", area_code="1", sigungu_code="23")
+    area_page = await client.area_codes()
+    legal_page = await client.legal_dong_codes(list_yn=True)
+    lcls_page = await client.classification_system_codes(list_yn=True)
 
     assert sync_page.items[0].show_flag == "1"
     assert session.calls[0]["params"]["showFlag"] == "1"
@@ -380,15 +390,15 @@ def test_sync_and_code_endpoints(fake_client_factory):
     assert lcls_page.items[0].name == "역사관광"
 
 
-def test_code_cache_avoids_duplicate_requests(fake_client_factory):
+async def test_code_cache_avoids_duplicate_requests(fake_client_factory):
     cache: dict = {}
     client, session = fake_client_factory(
         FakeResponse(tour_payload({"code": "1", "name": "서울", "rnum": "1"})),
         code_cache=cache,
     )
 
-    first = client.area_codes()
-    second = client.area_codes()
+    first = await client.area_codes()
+    second = await client.area_codes()
 
     assert first.items[0].code == "1"
     assert second is first
@@ -397,10 +407,10 @@ def test_code_cache_avoids_duplicate_requests(fake_client_factory):
 
     # A different parameter set is a distinct cache entry and would issue a new request.
     with pytest.raises(AssertionError, match="no fake response left"):
-        client.area_codes(area_code="1")
+        (await client.area_codes(area_code="1"))
 
 
-def test_client_iter_pages_increments_page_no(fake_client_factory):
+async def test_client_iter_pages_increments_page_no(fake_client_factory):
     client, session = fake_client_factory(
         FakeResponse(
             tour_payload(
@@ -420,7 +430,7 @@ def test_client_iter_pages_increments_page_no(fake_client_factory):
         ),
     )
 
-    pages = list(client.iter_pages(client.area_codes, num_of_rows=2))
+    pages = [item async for item in client.iter_pages(client.area_codes, num_of_rows=2)]
 
     assert [page.page_no for page in pages] == [1, 2]
     assert [item.code for page in pages for item in page.items] == ["1", "2", "3"]
@@ -428,18 +438,18 @@ def test_client_iter_pages_increments_page_no(fake_client_factory):
     assert all(call["params"]["numOfRows"] == 2 for call in session.calls)
 
 
-def test_client_iter_pages_no_data_is_empty_iterator(fake_client_factory):
+async def test_client_iter_pages_no_data_is_empty_iterator(fake_client_factory):
     client, session = fake_client_factory(
         FakeResponse(tour_payload(None, result_code="03", result_msg="NO_DATA")),
     )
 
-    pages = list(client.iter_pages(client.area_codes))
+    pages = [item async for item in client.iter_pages(client.area_codes)]
 
     assert pages == []
     assert session.calls[0]["params"]["pageNo"] == 1
 
 
-def test_client_iter_pages_max_items_stops_before_next_fetch(fake_client_factory):
+async def test_client_iter_pages_max_items_stops_before_next_fetch(fake_client_factory):
     client, session = fake_client_factory(
         FakeResponse(
             tour_payload(
@@ -459,17 +469,19 @@ def test_client_iter_pages_max_items_stops_before_next_fetch(fake_client_factory
         ),
     )
 
-    pages = list(client.iter_pages(client.area_codes, num_of_rows=2, max_items=2))
+    pages = [
+        item async for item in client.iter_pages(client.area_codes, num_of_rows=2, max_items=2)
+    ]
 
     assert [page.page_no for page in pages] == [1]
     assert len(session.calls) == 1
 
 
-def test_raw_endpoint_preserves_raw_records(fake_client_factory):
+async def test_raw_endpoint_preserves_raw_records(fake_client_factory):
     rows = [{"custom": "value"}, {"custom": "value2"}]
     client, session = fake_client_factory(FakeResponse(tour_payload(rows)))
 
-    page = client.raw_endpoint("customEndpoint2", {"foo": "bar", "serviceKey": "LEAK"})
+    page = await client.raw_endpoint("customEndpoint2", {"foo": "bar", "serviceKey": "LEAK"})
 
     assert page.items[0]["custom"] == "value"
     assert page.items[1]["custom"] == "value2"
@@ -480,7 +492,7 @@ def test_raw_endpoint_preserves_raw_records(fake_client_factory):
     assert "serviceKey" not in page.context.request_params
 
 
-def test_env_and_language_errors(monkeypatch, tmp_path, fake_client_factory):
+async def test_env_and_language_errors(monkeypatch, tmp_path, fake_client_factory):
     monkeypatch.delenv("DATA_GO_KR_SERVICE_KEY", raising=False)
     monkeypatch.chdir(tmp_path)
 
@@ -496,7 +508,7 @@ def test_env_and_language_errors(monkeypatch, tmp_path, fake_client_factory):
     monkeypatch.setenv("DATA_GO_KR_SERVICE_KEY", "ENV_KEY")
     client, session = fake_client_factory(FakeResponse(tour_payload([])))
     env_client = KrTourApiClient(session=session)
-    env_client.area_codes()
+    (await env_client.area_codes())
     assert client.service_key == "TEST_KEY"
     assert session.calls[0]["params"]["serviceKey"] == "ENV_KEY"
 

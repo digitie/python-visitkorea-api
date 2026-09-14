@@ -14,43 +14,80 @@
 ## 기본 사용
 
 ```python
+import asyncio
 from visitkorea import ContentType, KrTourApiClient
 
-client = KrTourApiClient.from_env()
-page = client.search_keyword("경복궁", content_type_id=ContentType.TOURIST_ATTRACTION)
-item = page.items[0]
 
-print(item.title)
-print(item.model_dump())
-print(item.model_dump_json())
+async def main() -> None:
+    async with KrTourApiClient.from_env() as client:
+        page = (await client.search_keyword("경복궁", content_type_id=ContentType.TOURIST_ATTRACTION))
+        if not page.items:
+            return
+        item = page.items[0]
+
+        print(item.title)
+        print(item.model_dump())
+        print(item.model_dump_json())
+
+
+asyncio.run(main())
 ```
 
 `Page`도 Pydantic 모델입니다.
 
 ```python
-payload = page.model_dump()
-assert isinstance(payload["items"], tuple)
-assert page.has_next_page is False
+import asyncio
+from visitkorea import KrTourApiClient
+
+
+async def main() -> None:
+    async with KrTourApiClient.from_env() as client:
+        page = await client.search_keyword("경복궁", num_of_rows=1)
+        payload = page.model_dump()
+        assert isinstance(payload["items"], tuple)
+        print(page.has_next_page, page.next_page_no)
+
+
+asyncio.run(main())
 ```
 
 JSON으로 외부 API 응답을 만들 때는 Pydantic의 JSON mode를 쓰는 편이 날짜 처리에 안전합니다.
 
 ```python
-payload = page.model_dump(mode="json")
-json_text = page.model_dump_json()
+import asyncio
+from visitkorea import KrTourApiClient
+
+
+async def main() -> None:
+    async with KrTourApiClient.from_env() as client:
+        page = await client.search_keyword("경복궁", num_of_rows=1)
+        payload = page.model_dump(mode="json")
+        json_text = page.model_dump_json()
+
+
+asyncio.run(main())
 ```
 
-## Page context
+## Page 호출 출처
 
 `Page.context`에는 호출 provenance가 들어갑니다. `service_name`, `endpoint`, `request_params`, `collected_at`을 확인할 수 있고, `request_params`에는 `MobileOS`, `MobileApp`, `_type`과 endpoint별 파라미터만 남깁니다. 인증키 원문인 `serviceKey`는 저장하지 않습니다.
 
 ```python
-page = client.search_keyword("경복궁", content_type_id=ContentType.TOURIST_ATTRACTION)
+import asyncio
+from visitkorea import ContentType, KrTourApiClient
 
-print(page.context.service_name)     # KorService2
-print(page.context.endpoint)         # searchKeyword2
-print(page.context.request_params)   # serviceKey 없음
-print(page.context.collected_at)
+
+async def main() -> None:
+    async with KrTourApiClient.from_env() as client:
+        page = (await client.search_keyword("경복궁", content_type_id=ContentType.TOURIST_ATTRACTION))
+
+        print(page.context.service_name)     # KorService2
+        print(page.context.endpoint)         # searchKeyword2
+        print(page.context.request_params)   # serviceKey 없음
+        print(page.context.collected_at)
+
+
+asyncio.run(main())
 ```
 
 자주 쓰는 값은 `page.endpoint`, `page.request_params`처럼 `Page` 속성으로도 바로 읽을 수 있습니다.
@@ -78,21 +115,42 @@ schema = Page[TourItem].model_json_schema()
 TourAPI는 endpoint, content type, 실제 데이터 상태에 따라 필드가 자주 달라집니다. 라이브러리는 공통 필드를 typed field로 제공하되 원문 전체를 `raw`에 남깁니다.
 
 ```python
-detail = client.detail_common("126508")
+import asyncio
+from visitkorea import KrTourApiClient
 
-print(detail.title)
-print(detail.raw.get("homepage"))
+
+async def main() -> None:
+    async with KrTourApiClient.from_env() as client:
+        detail = (await client.detail_common("126508"))
+
+        print(detail.title)
+        print(detail.raw.get("homepage"))
+
+
+asyncio.run(main())
 ```
 
 content type별 소개정보인 `IntroInfo`, 반복 상세정보인 `RepeatInfo`는 특히 `raw`가 중요합니다. 문서에 보이는 필드를 모두 public field로 고정하면 다른 content type에서 누락이나 오해가 생기기 쉽기 때문입니다.
 
-## Frozen 모델
+## 불변 모델
 
 모델은 불변 객체처럼 다룹니다.
 
 ```python
-item = page.items[0]
-updated = item.model_copy(update={"title": "새 제목"})
+import asyncio
+from visitkorea import KrTourApiClient
+
+
+async def main() -> None:
+    async with KrTourApiClient.from_env() as client:
+        page = await client.search_keyword("경복궁", num_of_rows=1)
+        if not page.items:
+            return
+        item = page.items[0]
+        updated = item.model_copy(update={"title": "새 제목"})
+
+
+asyncio.run(main())
 ```
 
 직접 대입은 허용하지 않습니다.
@@ -122,6 +180,8 @@ assert coord.latlon == (37.5796, 126.9769)
 TourAPI 요청 직전에는 client가 `PlaceCoordinate.lon`/`lat`를 `mapX`/`mapY`로 직접 옮깁니다.
 
 ```python
+from visitkorea import PlaceCoordinate
+coord = PlaceCoordinate(lat=37.5796, lon=126.9769)
 assert {"mapX": coord.lon, "mapY": coord.lat} == {"mapX": 126.9769, "mapY": 37.5796}
 ```
 
@@ -147,20 +207,53 @@ assert {"mapX": coord.lon, "mapY": coord.lat} == {"mapX": 126.9769, "mapY": 37.5
 FastAPI 같은 웹 프레임워크에 넘길 때는 dict로 변환합니다.
 
 ```python
-def as_response(page):
-    return page.model_dump(mode="json")
+import asyncio
+from visitkorea import KrTourApiClient
+
+
+async def main() -> None:
+    async with KrTourApiClient.from_env() as client:
+        page = await client.search_keyword("경복궁", num_of_rows=1)
+        def as_response(page):
+            return page.model_dump(mode="json")
+
+
+asyncio.run(main())
 ```
 
 로그나 메시지 큐에는 JSON string을 직접 사용할 수 있습니다.
 
 ```python
-event_body = page.model_dump_json()
+import asyncio
+from visitkorea import KrTourApiClient
+
+
+async def main() -> None:
+    async with KrTourApiClient.from_env() as client:
+        page = await client.search_keyword("경복궁", num_of_rows=1)
+        event_body = page.model_dump_json()
+
+
+asyncio.run(main())
 ```
 
 원문 응답을 제외하고 싶다면 `exclude`를 사용합니다.
 
 ```python
-public_payload = item.model_dump(exclude={"raw"}, mode="json")
+import asyncio
+from visitkorea import KrTourApiClient
+
+
+async def main() -> None:
+    async with KrTourApiClient.from_env() as client:
+        page = await client.search_keyword("경복궁", num_of_rows=1)
+        if not page.items:
+            return
+        item = page.items[0]
+        public_payload = item.model_dump(exclude={"raw"}, mode="json")
+
+
+asyncio.run(main())
 ```
 
 ## 마이그레이션 메모

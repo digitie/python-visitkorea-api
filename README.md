@@ -61,24 +61,30 @@ $env:DATA_GO_KR_SERVICE_KEY="발급받은_decoding_인증키"
 ## 빠른 시작
 
 ```python
+import asyncio
 from visitkorea import ContentType, KrTourApiClient
 
-client = KrTourApiClient.from_env(mobile_app="my-travel-app")
 
-page = client.search_keyword(
-    "경복궁",
-    content_type_id=ContentType.TOURIST_ATTRACTION,
-    l_dong_regn_cd="11",
-)
+async def main() -> None:
+    async with KrTourApiClient.from_env(mobile_app="my-travel-app") as client:
 
-for item in page.items:
-    print(item.content_id, item.title, item.addr1, item.coordinate)
+        page = (await client.search_keyword(
+            "경복궁",
+            content_type_id=ContentType.TOURIST_ATTRACTION,
+            l_dong_regn_cd="11",
+        ))
 
-detail = client.detail_common(page.items[0].content_id)
-print(detail.overview)
+        for item in page.items:
+            print(item.content_id, item.title, item.addr1, item.coordinate)
+
+        detail = (await client.detail_common(page.items[0].content_id))
+        print(detail.overview)
+
+
+asyncio.run(main())
 ```
 
-`AsyncKrTourApiClient`는 같은 public method 이름을 `await` 가능한 형태로 제공합니다. `TourApiHubClient`, Pydantic 모델 직렬화, 좌표 규칙, 페이지 반복, 예외 처리, 전체 CLI 명령은 [docs/user-guide.md](docs/user-guide.md)에서 다룹니다.
+`KrTourApiClient`와 `TourApiHubClient`는 비동기 전용입니다. 네트워크 메서드에 `await`를 사용하고 `async with`로 세션을 닫습니다. 공통 `AsyncTokenBucket`으로 기본 5 TPS를 제어합니다. `TourApiHubClient`, Pydantic 모델 직렬화, 좌표 규칙, 페이지 반복, 예외 처리, 전체 CLI 명령은 [docs/user-guide.md](docs/user-guide.md)에서 다룹니다.
 
 ## 개발과 테스트
 
@@ -90,7 +96,7 @@ ruff check .
 mypy src/visitkorea
 ```
 
-기본 테스트는 실제 TourAPI를 호출하지 않습니다. live test는 `@pytest.mark.live`로 분리하고, `DATA_GO_KR_SERVICE_KEY`가 없으면 skip합니다. 자세한 정책은 [docs/testing.md](docs/testing.md)를 참고하세요.
+기본 테스트는 실제 TourAPI를 호출하지 않습니다. live test는 `@pytest.mark.live`로 분리하고, `VISITKOREA_RUN_LIVE=1` 또는 `DATA_GO_KR_SERVICE_KEY`가 없으면 skip합니다. 자세한 정책은 [docs/testing.md](docs/testing.md)를 참고하세요.
 
 ## 데이터와 외부 API
 

@@ -43,7 +43,7 @@ def test_clean_tourapi_html_returns_plain_display_text() -> None:
     assert clean_tourapi_html(None) is None
 
 
-def test_display_helpers_are_opt_in_and_keep_raw_fields(fake_client_factory) -> None:
+async def test_display_helpers_are_opt_in_and_keep_raw_fields(fake_client_factory) -> None:
     detail_row = {
         "contentid": "1",
         "contenttypeid": "12",
@@ -64,8 +64,8 @@ def test_display_helpers_are_opt_in_and_keep_raw_fields(fake_client_factory) -> 
         FakeResponse(tour_payload(repeat_row)),
     )
 
-    detail = client.detail_common("1")
-    repeat = client.detail_info("1", "25").items[0]
+    detail = (await client.detail_common("1"))
+    repeat = (await client.detail_info("1", "25")).items[0]
 
     assert detail.homepage == detail_row["homepage"]
     assert detail.overview == detail_row["overview"]

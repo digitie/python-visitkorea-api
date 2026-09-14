@@ -27,7 +27,7 @@ def test_content_type_labels():
     assert area_code_label("999") is None
 
 
-def test_language_maps_to_service_name():
+async def test_language_maps_to_service_name():
     session_response = FakeResponse(tour_payload([]))
     from .conftest import FakeSession
 
@@ -38,7 +38,7 @@ def test_language_maps_to_service_name():
         session=session,
         mobile_os=MobileOS.ETC,
     )
-    client.area_codes()
+    (await client.area_codes())
 
     assert session.calls[0]["url"].endswith("/EngService2/areaCode2")
     assert str(Arrange.TITLE) == "A"
