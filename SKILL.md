@@ -20,7 +20,7 @@ description: data.go.kr의 Korea Tourism Organization TourAPI용 Python client�
 | Python import | `from visitkorea import ...` |
 | CLI 명령 | `visitkorea` |
 | 환경변수 | `DATA_GO_KR_SERVICE_KEY`, `VISITKOREA_API_SERVICE_KEY` |
-| 기본 base URL | `http://apis.data.go.kr/B551011` |
+| 기본 base URL | `https://apis.data.go.kr/B551011` |
 | 기본 서비스 | `KorService2` |
 
 ## 2. 빠른 시작
@@ -34,8 +34,8 @@ python -m pytest -q
 
 ```
 src/visitkorea/
-  client.py            — KrTourApiClient / AsyncKrTourApiClient (KorService2 typed wrapper)
-  hub.py               — TourApiHubClient / AsyncTourApiHubClient (27개 서비스 generic)
+  client.py            — KrTourApiClient (KorService2 typed wrapper)
+  hub.py               — TourApiHubClient (27개 서비스 generic)
   services.py          — SERVICE_DEFINITIONS (api.visitkorea.or.kr 매뉴얼 기반 카탈로그)
   operation_schema.py  — 오퍼레이션 파라미터 스키마
   models.py            — Pydantic v2 response model (frozen, raw 보존)
@@ -52,9 +52,9 @@ src/visitkorea/
   _provenance.py       — TourApiCallContext 생성
 ```
 
-## 4. 절대 하지 말 것 (DO NOT)
+## 4. 절대 하지 말 것 (금지 사항)
 
-1. **동기/비동기 코드 불일치 금지**: sync/async 클래스에서 `_list_params()`, `_page_params()` 등 공유 로직은 항상 동일하게 유지. 한쪽을 수정하면 반드시 다른 쪽도 갱신.
+1. **비동기 전용 유지** — 공개 네트워크 메서드는 `await`, 페이지 반복은 `async for`, 종료는 `aclose()`와 `async with`를 사용한다(D-006). 모든 송신은 공통 버킷의 토큰을 획득한다.
 2. **서비스 키 평문 노출 금지**: 예외 메시지, 로그, response에 서비스 키를 포함하지 않는다. `_redact_secret()`을 거친다.
 3. **`areaCode` 없이 `sigunguCode` 전달 금지**: TourAPI가 무시하거나 오류를 반환한다.
 4. **`cat1` 없이 `cat2`, `cat1`/`cat2` 없이 `cat3` 전달 금지**: 계층적 의존성.
@@ -70,7 +70,7 @@ src/visitkorea/
 ## 5. 프로젝트 불변 조건
 
 1. 기본 서비스는 `KorService2`다.
-2. 기본 base URL은 `http://apis.data.go.kr/B551011`이다.
+2. 기본 base URL은 `https://apis.data.go.kr/B551011`이다.
 3. 인증 파라미터는 `serviceKey`다.
 4. Public example은 `params=`를 사용하므로 decoding 서비스키를 가정한다.
 5. 항상 `_type=json`을 요청한다.
@@ -92,7 +92,7 @@ src/visitkorea/
 
 `KrTourApiClient`는 일반적인 `KorService2` endpoint에 typed wrapper를 제공한다.
 
-| Public method | Endpoint |
+| 공개 메서드 | 엔드포인트 |
 |---|---|
 | `area_based_list()` | `areaBasedList2` |
 | `location_based_list()` | `locationBasedList2` |
@@ -112,26 +112,34 @@ src/visitkorea/
 그 외 공식 서비스는 `TourApiHubClient`와 `SERVICE_DEFINITIONS`로 노출한다.
 
 ```python
-hub = TourApiHubClient.from_env()
-hub.gocamping.based_list(facltNm="숲")
-hub.call("photo_gallery", "gallerySearchList1", galSearchKeyword="서울")
+import asyncio
+from visitkorea import TourApiHubClient
+
+
+async def main() -> None:
+    async with TourApiHubClient.from_env() as hub:
+        (await hub.gocamping.based_list(facltNm="숲"))
+        (await hub.call("photo_gallery", "gallerySearchList1", galSearchKeyword="서울"))
+
+
+asyncio.run(main())
 ```
 
-## 7. 동작 변경 시 deliverable
+## 7. 동작 변경 시 산출물
 
 - 사용자-facing API 변경은 `README.md`에 반영한다.
-- Endpoint, parameter, response, official-doc 변경은 `krtourapi-api.md`에 반영한다.
+- 엔드포인트, parameter, response, official-doc 변경은 `krtourapi-api.md`에 반영한다.
 - Test 정책 변경은 `docs/testing.md`에 반영한다.
 - Known fix는 `docs/troubleshooting.md`에 반영한다.
 - 반복 실수 방지는 `docs/repeated-mistakes.md`에 반영한다.
 - Live test보다 offline test를 먼저 추가한다.
 - `CHANGELOG.md`를 최신 상태로 유지한다.
 
-## 8. Test 요구사항
+## 8. 테스트 요구사항
 
 기본 테스트는 request parameter shape, common params(`serviceKey`, `MobileOS`, `MobileApp`, `_type=json`), result-code exception mapping, XML service-key error, `items.item` 단일/list, empty result, dependent parameter validation, Pydantic model conversion/serialization, CLI output, service catalog count/alias, generic Hub routing, Pythonic parameter alias conversion, public enum/type export, WGS84 coordinate normalization을 다룬다.
 
-Live test는 `live` marker를 붙이고 `DATA_GO_KR_SERVICE_KEY`가 없으면 skip한다.
+Live test는 `live` marker를 붙이고 `VISITKOREA_RUN_LIVE=1` 또는 `DATA_GO_KR_SERVICE_KEY`가 없으면 skip한다.
 
 ## 9. 작업 후 체크리스트
 
@@ -141,7 +149,7 @@ Live test는 `live` marker를 붙이고 `DATA_GO_KR_SERVICE_KEY`가 없으면 sk
 - [ ] 사용자 가시 변경이면 `CHANGELOG.md` 갱신
 - [ ] 새 endpoint/서비스 추가 시 `krtourapi-api.md` 갱신
 
-## 10. Guardrail
+## 10. 검증 규칙
 
 - `areaCode` 없이 `sigunguCode`를 전달하지 않는다.
 - `cat1` 없이 `cat2`, `cat1`/`cat2` 없이 `cat3`를 전달하지 않는다.

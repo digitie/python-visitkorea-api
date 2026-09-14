@@ -33,6 +33,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "pytest>=8",
+  "pytest-asyncio>=0.24",
   "pytest-cov>=6",
   "ruff>=0.5",
   "mypy>=1.10",
@@ -71,6 +72,7 @@ select = ["E", "F", "W", "I", "N", "UP", "B", "A", "C4", "SIM", "TCH", "RUF"]
 "src/visitkorea/_pagination.py" = ["TC001", "TC003"]
 "src/visitkorea/_provenance.py" = ["TC003"]
 "src/visitkorea/_convert.py" = ["TC003"]
+"src/visitkorea/_httpx.py" = ["TC001", "TC003"]
 "src/visitkorea/_ratelimit.py" = ["TC001", "TC002", "TC003"]
 "src/visitkorea/cli.py" = ["TC003"]
 "src/visitkorea/debug.py" = ["TC001", "TC002", "TC003"]
@@ -83,6 +85,7 @@ strict = true
 warn_unused_ignores = true
 
 [tool.pytest.ini_options]
+asyncio_mode = "auto"
 testpaths = ["tests"]
 pythonpath = ["src"]
 addopts = "-ra"

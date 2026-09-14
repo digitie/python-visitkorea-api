@@ -10,13 +10,13 @@ class DummyClient:
     def __init__(self, **kwargs: Any) -> None:
         self.kwargs = kwargs
 
-    def __enter__(self) -> DummyClient:
+    async def __aenter__(self) -> DummyClient:
         return self
 
-    def __exit__(self, *exc_info: object) -> None:
+    async def __aexit__(self, *exc_info: object) -> None:
         return None
 
-    def search_keyword(self, keyword: str, **kwargs: Any) -> Page[dict[str, str]]:
+    async def search_keyword(self, keyword: str, **kwargs: Any) -> Page[dict[str, str]]:
         return Page(
             items=({"keyword": keyword, "content_type_id": str(kwargs.get("content_type_id"))},),
             total_count=1,
@@ -25,7 +25,7 @@ class DummyClient:
             raw={},
         )
 
-    def location_based_list(self, **kwargs: Any) -> Page[dict[str, str]]:
+    async def location_based_list(self, **kwargs: Any) -> Page[dict[str, str]]:
         return Page(
             items=({"radius": str(kwargs["radius"])},),
             total_count=1,
@@ -34,10 +34,10 @@ class DummyClient:
             raw={},
         )
 
-    def detail_common(self, content_id: str) -> dict[str, str]:
+    async def detail_common(self, content_id: str) -> dict[str, str]:
         return {"content_id": content_id}
 
-    def area_codes(self, **kwargs: Any) -> Page[dict[str, str]]:
+    async def area_codes(self, **kwargs: Any) -> Page[dict[str, str]]:
         return Page(
             items=({"area_code": str(kwargs.get("area_code"))},),
             total_count=1,
@@ -74,25 +74,25 @@ class _FakeCliClient:
     def __init__(self, **kwargs: Any) -> None:
         self.kwargs = kwargs
 
-    def __enter__(self) -> _FakeCliClient:
+    async def __aenter__(self) -> _FakeCliClient:
         return self
 
-    def __exit__(self, *exc_info: object) -> None:
+    async def __aexit__(self, *exc_info: object) -> None:
         return None
 
     def _page(self, **item: str) -> Page[dict[str, str]]:
         return Page(items=(item,), total_count=1, page_no=1, num_of_rows=10, raw={})
 
-    def search_festival(self, start: str, **kw: Any) -> Page[dict[str, str]]:
+    async def search_festival(self, start: str, **kw: Any) -> Page[dict[str, str]]:
         return self._page(kind="festival", start=start)
 
-    def search_stay(self, **kw: Any) -> Page[dict[str, str]]:
+    async def search_stay(self, **kw: Any) -> Page[dict[str, str]]:
         return self._page(kind="stay")
 
-    def area_based_list(self, **kw: Any) -> Page[dict[str, str]]:
+    async def area_based_list(self, **kw: Any) -> Page[dict[str, str]]:
         return self._page(kind="area", ctid=str(kw.get("content_type_id")))
 
-    def detail_pet_tour(self, content_id: str, **kw: Any) -> Page[dict[str, str]]:
+    async def detail_pet_tour(self, content_id: str, **kw: Any) -> Page[dict[str, str]]:
         return self._page(pet=content_id)
 
 

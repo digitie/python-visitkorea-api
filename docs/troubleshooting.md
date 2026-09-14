@@ -1,4 +1,4 @@
-# Troubleshooting
+# 문제 해결
 
 ## `SERVICE_KEY_IS_NOT_REGISTERED_ERROR`
 
@@ -54,22 +54,38 @@ TourAPI는 `_type=json` 요청에도 인증키/권한 오류를 XML로 돌려줄
 게이트웨이의 일시적 HTTP 429/5xx는 `max_retries`로 재시도할 수 있다. 기본값은 `0`이라 기존 오류 동작이 그대로 유지되며, 켜면 지수 백오프(jitter)로 재시도하고 응답에 `Retry-After`가 있으면 우선한다.
 
 ```python
-client = KrTourApiClient.from_env(max_retries=3, backoff_factor=0.5, max_backoff=20.0)
+import asyncio
+from visitkorea import KrTourApiClient
+
+
+async def main() -> None:
+    async with KrTourApiClient.from_env(max_retries=3, backoff_factor=0.5, max_backoff=20.0) as client:
+        pass
+
+
+asyncio.run(main())
 ```
 
 읽기 지연이 잦으면 `timeout`에 `httpx.Timeout(connect=..., read=...)`을 넘겨 세분화한다. 요청 흐름은 `logging.getLogger("visitkorea.http")`를 DEBUG로 켜면 serviceKey 없이 endpoint와 상태 코드가 남는다.
 
 ## 호출 한도 초과 (`resultCode 22` / HTTP 429)
 
-`TourApiRateLimitError`(`failure_kind="rate_limit"`)로 매핑된다. 호출량을 줄이려면 클라이언트 측 `TokenBucketRateLimiter`로 속도를 제한하고, 거의 정적인 코드 조회는 `code_cache`로 중복 호출을 없앤다.
+`TourApiRateLimitError`(`failure_kind="rate_limit"`)로 매핑된다. 호출량을 줄이려면 클라이언트 측 `AsyncTokenBucket`로 속도를 제한하고, 거의 정적인 코드 조회는 `code_cache`로 중복 호출을 없앤다.
 
 ```python
-from visitkorea import KrTourApiClient, TokenBucketRateLimiter
+import asyncio
+from visitkorea import KrTourApiClient, AsyncTokenBucket
 
-client = KrTourApiClient.from_env(
-    rate_limiter=TokenBucketRateLimiter(rate=5, per=1.0),
-    code_cache={},
-)
+
+async def main() -> None:
+    async with KrTourApiClient.from_env(
+        rate_limiter=AsyncTokenBucket(max_rps=5),
+        code_cache={},
+    ) as client:
+        pass
+
+
+asyncio.run(main())
 ```
 
 일일 쿼터 자체가 초과된 경우는 재시도로 해결되지 않으므로 공공데이터포털에서 활용 한도를 확인한다.
@@ -82,7 +98,7 @@ client = KrTourApiClient.from_env(
 
 가능한 원인:
 
-- `(latitude, longitude)` 순서의 tuple을 그대로 넘겼다.
+- `(longitude, latitude)` 순서의 튜플을 공개 API에 넘겼다.
 - TourAPI 원문 이름 `mapX`, `mapY`를 보고 `mapX=위도`, `mapY=경도`로 착각했다.
 - 좌표계가 WGS84가 아닌 TM, UTM-K, EPSG:5179 같은 국내 좌표계다.
 
@@ -108,8 +124,17 @@ client = KrTourApiClient.from_env(
 - 애매할 때는 동적 method 대신 원문 operation 이름으로 호출한다.
 
 ```python
-hub.call("gocamping", "basedList")
-hub.service("gocamping").call("basedList")
+import asyncio
+from visitkorea import TourApiHubClient
+
+
+async def main() -> None:
+    async with TourApiHubClient.from_env() as hub:
+        (await hub.call("gocamping", "basedList"))
+        (await hub.service("gocamping").call("basedList"))
+
+
+asyncio.run(main())
 ```
 
 ## Pydantic 모델을 수정하려다 오류가 남
@@ -119,8 +144,21 @@ hub.service("gocamping").call("basedList")
 해결:
 
 ```python
-updated = item.model_copy(update={"title": "새 제목"})
-payload = item.model_dump(mode="json")
+import asyncio
+from visitkorea import KrTourApiClient
+
+
+async def main() -> None:
+    async with KrTourApiClient.from_env() as client:
+        page = await client.search_keyword("경복궁", num_of_rows=1)
+        if not page.items:
+            return
+        item = page.items[0]
+        updated = item.model_copy(update={"title": "새 제목"})
+        payload = item.model_dump(mode="json")
+
+
+asyncio.run(main())
 ```
 
 dict가 필요하면 `dataclasses.asdict()`가 아니라 `model_dump()`를 사용한다. 더 자세한 내용은 [pydantic-models.md](pydantic-models.md)를 참고한다.
@@ -130,7 +168,20 @@ dict가 필요하면 `dataclasses.asdict()`가 아니라 `model_dump()`를 사�
 TourAPI는 content type과 서비스마다 item 필드가 조금씩 다르다. 안정적으로 공통화하기 어려운 필드는 public field로 고정하지 않고 `raw`에 보존한다.
 
 ```python
-value = item.raw.get("문서에만_있는_필드명")
+import asyncio
+from visitkorea import KrTourApiClient
+
+
+async def main() -> None:
+    async with KrTourApiClient.from_env() as client:
+        page = await client.search_keyword("경복궁", num_of_rows=1)
+        if not page.items:
+            return
+        item = page.items[0]
+        value = item.raw.get("문서에만_있는_필드명")
+
+
+asyncio.run(main())
 ```
 
 새 typed field를 추가하려면 실제 fixture 또는 공식 메뉴얼 근거를 먼저 확인하고, 기존 content type에서 깨지지 않는지 테스트를 추가한다.

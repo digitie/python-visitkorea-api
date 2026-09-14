@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### 변경
+
+- 공개 클라이언트를 비동기 전용으로 통합하고 별도 Async 접두사 클래스/aio/동기 토큰 버킷을 제거했습니다. 네트워크 메서드는 await, 반복은 async for, 종료는 async with/aclose를 사용합니다.
+- 모든 실제 HTTP 송신(재시도·리디렉션 포함)에 공통 AsyncTokenBucket을 적용했습니다. 기본 5 TPS이며 Hub 전체가 같은 버킷과 세션을 공유합니다.
+- 코드 캐시 실패·취소 시 잠금 누수, 독립 서비스 세션 종료 누락, 응답 숫자 파싱 및 인증값 마스킹 경계를 보강했습니다. CLI·디버그 UI·문서·테스트를 비동기 호출로 전환했습니다.
+
+
 - asyncio 전환 재검증을 위한 2인 적대적 리뷰어 서브에이전트(동시성/자원관리 관점, 보안/데이터
   무결성 관점) 감사에서 발견·검증된 버그 수정: `AsyncKrTourApiClient._cached_code_page()`의
   코드 조회 stampede 방지용 `asyncio.Lock`이 캐시가 채워진 뒤에도 `_code_cache_locks` 딕셔너리에

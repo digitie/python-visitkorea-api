@@ -12,4 +12,5 @@ if (-not $env:DATA_GO_KR_SERVICE_KEY) {
   throw "DATA_GO_KR_SERVICE_KEY is not set. Create .env.local with DATA_GO_KR_SERVICE_KEY=..."
 }
 
+$env:VISITKOREA_RUN_LIVE = "1"
 python -m pytest -m live tests/test_live.py @args

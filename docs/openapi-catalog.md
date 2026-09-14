@@ -1,4 +1,4 @@
-# TourAPI OpenAPI Catalog
+# TourAPI OpenAPI 카탈로그
 
 확인 기준일: 2026-04-30
 
@@ -10,19 +10,24 @@
 .\scripts\download_visitkorea_manuals.ps1
 ```
 
-## Generic Client
+## 공통 클라이언트
 
 모든 서비스는 `TourApiHubClient`에서 호출할 수 있습니다.
 
 ```python
+import asyncio
 from visitkorea import TourApiHubClient
 
-hub = TourApiHubClient.from_env()  # 또는 TourApiHubClient("service-key")
+async def main() -> None:
+    async with TourApiHubClient.from_env() as hub:
+        camping = await hub.call("gocamping", "basedList", facltNm="숲")
+        photos = await hub.photo_gallery.gallery_search_list(galSearchKeyword="서울")
+        related = await hub.related_tour.area_based_list(
+            base_ym="202504", area_cd="51", signgu_cd="51130"
+        )
+        print(len(camping.items), len(photos.items), len(related.items))
 
-page = hub.call("gocamping", "basedList", facltNm="숲")
-page = hub.photo_gallery.gallery_list(galSearchKeyword="서울")
-page = hub.pet.detail_pet_tour2(content_id="123")
-page = hub.related_tour.area_based_list(base_ym="202504", area_cd="51", signgu_cd="51130")
+asyncio.run(main())
 ```
 
 `page_no`, `num_of_rows`, `content_id`, `content_type_id`는 Python식 이름으로 전달하면 각각 `pageNo`, `numOfRows`, `contentId`, `contentTypeId`로 바뀝니다. 그 외 파라미터는 메뉴얼의 원문 이름을 그대로 전달합니다.
@@ -31,37 +36,37 @@ Hub 응답의 `page.context`에는 `service_name`, `endpoint`, `request_params`,
 
 여러 페이지가 필요하면 `hub.iter_pages(service, operation, ...)`를 사용합니다. `Page.total_count`, `page_no`, `num_of_rows`를 기준으로 다음 페이지를 판단하고, `max_pages` 또는 `max_items` guard를 지정할 수 있습니다.
 
-## Services
+## 서비스 목록
 
-| key | service name | operations | manual |
+| 키 | 서비스 이름 | 오퍼레이션 | 매뉴얼 |
 |---|---|---|---|
-| `kor` | `KorService2` | `areaCode2`, `categoryCode2`, `areaBasedList2`, `locationBasedList2`, `searchKeyword2`, `searchFestival2`, `searchStay2`, `detailCommon2`, `detailIntro2`, `detailInfo2`, `detailImage2`, `areaBasedSyncList2`, `detailPetTour2`, `ldongCode2`, `lclsSystmCode2` | [download](https://api.visitkorea.or.kr/upload/manual/guide/file/1737596499508.zip) |
-| `eng` | `EngService2` | `areaCode2`, `categoryCode2`, `areaBasedList2`, `locationBasedList2`, `searchKeyword2`, `searchFestival2`, `searchStay2`, `detailCommon2`, `detailIntro2`, `detailInfo2`, `detailImage2`, `areaBasedSyncList2`, `ldongCode2`, `lclsSystmCode2` | [download](https://api.visitkorea.or.kr/upload/manual/guide/file/1737596531873.zip) |
-| `chs` | `ChsService2` | `areaCode2`, `categoryCode2`, `ldongCode2`, `areaBasedList2`, `locationBasedList2`, `searchKeyword2`, `searchFestival2`, `searchStay2`, `detailCommon2`, `detailIntro2`, `detailInfo2`, `detailImage2`, `areaBasedSyncList2`, `lclsSystmCode2` | [download](https://api.visitkorea.or.kr/upload/manual/guide/file/1704160495049.zip) |
-| `cht` | `ChtService2` | `areaCode2`, `categoryCode2`, `ldongCode2`, `areaBasedList2`, `locationBasedList2`, `searchKeyword2`, `searchFestival2`, `searchStay2`, `detailCommon2`, `detailIntro2`, `detailInfo2`, `detailImage2`, `areaBasedSyncList2`, `lclsSystmCode2` | [download](https://api.visitkorea.or.kr/upload/manual/guide/file/1737596423271.zip) |
-| `jpn` | `JpnService2` | `areaCode2`, `categoryCode2`, `ldongCode2`, `areaBasedList2`, `locationBasedList2`, `searchKeyword2`, `searchFestival2`, `searchStay2`, `detailCommon2`, `detailIntro2`, `detailInfo2`, `detailImage2`, `areaBasedSyncList2`, `lclsSystmCode2` | [download](https://api.visitkorea.or.kr/upload/manual/guide/file/1737596480579.zip) |
-| `ger` | `GerService2` | `areaCode2`, `categoryCode2`, `ldongCode2`, `areaBasedList2`, `locationBasedList2`, `searchKeyword2`, `searchFestival2`, `searchStay2`, `detailCommon2`, `detailIntro2`, `detailInfo2`, `detailImage2`, `areaBasedSyncList2`, `lclsSystmCode2` | [download](https://api.visitkorea.or.kr/upload/manual/guide/file/1737596457504.zip) |
-| `fre` | `FreService2` | `areaCode2`, `categoryCode2`, `ldongCode2`, `areaBasedList2`, `locationBasedList2`, `searchKeyword2`, `searchFestival2`, `searchStay2`, `detailCommon2`, `detailIntro2`, `detailInfo2`, `detailImage2`, `areaBasedSyncList2`, `lclsSystmCode2` | [download](https://api.visitkorea.or.kr/upload/manual/guide/file/1737596408255.zip) |
-| `spn` | `SpnService2` | `areaCode2`, `categoryCode2`, `ldongCode2`, `areaBasedList2`, `locationBasedList2`, `searchKeyword2`, `searchFestival2`, `searchStay2`, `detailCommon2`, `detailIntro2`, `detailInfo2`, `detailImage2`, `areaBasedSyncList2`, `lclsSystmCode2` | [download](https://api.visitkorea.or.kr/upload/manual/guide/file/1737596391866.zip) |
-| `rus` | `RusService2` | `areaCode2`, `categoryCode2`, `ldongCode2`, `areaBasedList2`, `locationBasedList2`, `searchKeyword2`, `searchFestival2`, `searchStay2`, `detailCommon2`, `detailIntro2`, `detailInfo2`, `detailImage2`, `areaBasedSyncList2`, `lclsSystmCode2` | [download](https://api.visitkorea.or.kr/upload/manual/guide/file/1737596057411.zip) |
-| `with` | `KorWithService2` | `areaCode2`, `categoryCode2`, `areaBasedList2`, `locationBasedList2`, `searchKeyword2`, `detailCommon2`, `detailIntro2`, `detailInfo2`, `detailImage2`, `detailWithTour2`, `areaBasedSyncList2`, `ldongCode2`, `lclsSystmCode2` | [download](https://api.visitkorea.or.kr/upload/manual/guide/file/1737596514908.zip) |
-| `green` | `GreenTourService1` | `areaCode1`, `areaBasedList1`, `areaBasedSyncList1` | [download](https://api.visitkorea.or.kr/upload/manual/guide/file/1704160406003.zip) |
-| `photo_gallery` | `PhotoGalleryService1` | `galleryList1`, `gallerySearchList1`, `galleryDetailList1`, `gallerySyncDetailList1` | [download](https://api.visitkorea.or.kr/upload/manual/guide/file/1704160396374.zip) |
-| `gocamping` | `GoCamping` | `basedList`, `locationBasedList`, `searchList`, `imageList`, `basedSyncList` | [download](https://api.visitkorea.or.kr/upload/manual/guide/file/1704160387374.zip) |
-| `odii` | `Odii` | `themeBasedList`, `themeLocationBasedList`, `themeSearchList`, `storyBasedList`, `storyLocationBasedList`, `storySearchList`, `themeBasedSyncList`, `storyBasedSyncList` | [download](https://api.visitkorea.or.kr/upload/manual/guide/file/1720672146251.zip) |
-| `datalab` | `DataLabService` | `metcoRegnVisitrDDList`, `locgoRegnVisitrDDList` | [download](https://api.visitkorea.or.kr/upload/manual/guide/file/1704160370032.zip) |
-| `durunubi` | `Durunubi` | `routeList`, `courseList` | [download](https://api.visitkorea.or.kr/upload/manual/guide/file/1704160359411.zip) |
-| `employment` | `tursmService` | `empmnInfoList`, `empmnInfoDetail`, `code`, `syncList` | [download](https://api.visitkorea.or.kr/upload/manual/guide/file/1704160822554.zip) |
-| `tats_concentration` | `TatsCnctrRateService` | `tatsCnctrRateList`, `tatsCnctrRatedList` | [download](https://api.visitkorea.or.kr/upload/manual/guide/file/1725501618773.zip) |
-| `local_hub` | `LocgoHubTarService1` | `areaBasedList1` | [download](https://api.visitkorea.or.kr/upload/manual/guide/file/1725501897980.zip) |
-| `related_tour` | `TarRlteTarService1` | `areaBasedList1`, `searchKeyword1` | [download](https://api.visitkorea.or.kr/upload/manual/guide/file/1725502022236.zip) |
-| `pet` | `KorPetTourService2` | `ldongCode2`, `areaBasedList2`, `locationBasedList2`, `searchKeyword2`, `detailCommon2`, `detailIntro2`, `detailInfo2`, `detailImage2`, `detailPetTour2`, `petTourSyncList2`, `lclsSystmCode2` | [download](https://api.visitkorea.or.kr/upload/manual/guide/file/1737596366080.zip) |
-| `medical` | `MdclTursmService` | `ldongCode`, `areaBasedList`, `locationBasedList`, `searchKeyword`, `mdclTursmSyncList`, `detailCommon`, `detailIntro`, `detailMdclTursm` | [download](https://api.visitkorea.or.kr/upload/manual/guide/file/1725080563660.zip) |
-| `wellness` | `WellnessTursmService` | `ldongCode`, `areaBasedList`, `locationBasedList`, `searchKeyword`, `wellnessTursmSyncList`, `detailCommon`, `detailIntro`, `detailInfo`, `detailImage` | [download](https://api.visitkorea.or.kr/upload/manual/guide/file/1725080513010.zip) |
-| `photo_award` | `PhokoAwrdService` | `ldongCode`, `phokoAwrdList`, `phokoAwrdSyncList` | [download](https://api.visitkorea.or.kr/upload/manual/guide/file/1725092509540.zip) |
-| `area_diversity` | `AreaTarDivService` | `areaTouDivList`, `areaExpDivList`, `areaIntlDivList` | [download](https://api.visitkorea.or.kr/upload/manual/guide/file/manual_areaTarDivService.zip) |
-| `area_demand_strength` | `AreaTarDemDsService` | `areaTarSjrnDsList`, `areaTarExpDsList` | [download](https://api.visitkorea.or.kr/upload/manual/guide/file/manual_areaTarDemDsService.zip) |
-| `area_resource_demand` | `AreaTarResDemService` | `areaTarSvcDemList`, `areaCulResDemList` | [download](https://api.visitkorea.or.kr/upload/manual/guide/file/manual_areaTarResDemService.zip) |
+| `kor` | `KorService2` | `areaCode2`, `categoryCode2`, `areaBasedList2`, `locationBasedList2`, `searchKeyword2`, `searchFestival2`, `searchStay2`, `detailCommon2`, `detailIntro2`, `detailInfo2`, `detailImage2`, `areaBasedSyncList2`, `detailPetTour2`, `ldongCode2`, `lclsSystmCode2` | [다운로드](https://api.visitkorea.or.kr/upload/manual/guide/file/1737596499508.zip) |
+| `eng` | `EngService2` | `areaCode2`, `categoryCode2`, `areaBasedList2`, `locationBasedList2`, `searchKeyword2`, `searchFestival2`, `searchStay2`, `detailCommon2`, `detailIntro2`, `detailInfo2`, `detailImage2`, `areaBasedSyncList2`, `ldongCode2`, `lclsSystmCode2` | [다운로드](https://api.visitkorea.or.kr/upload/manual/guide/file/1737596531873.zip) |
+| `chs` | `ChsService2` | `areaCode2`, `categoryCode2`, `ldongCode2`, `areaBasedList2`, `locationBasedList2`, `searchKeyword2`, `searchFestival2`, `searchStay2`, `detailCommon2`, `detailIntro2`, `detailInfo2`, `detailImage2`, `areaBasedSyncList2`, `lclsSystmCode2` | [다운로드](https://api.visitkorea.or.kr/upload/manual/guide/file/1704160495049.zip) |
+| `cht` | `ChtService2` | `areaCode2`, `categoryCode2`, `ldongCode2`, `areaBasedList2`, `locationBasedList2`, `searchKeyword2`, `searchFestival2`, `searchStay2`, `detailCommon2`, `detailIntro2`, `detailInfo2`, `detailImage2`, `areaBasedSyncList2`, `lclsSystmCode2` | [다운로드](https://api.visitkorea.or.kr/upload/manual/guide/file/1737596423271.zip) |
+| `jpn` | `JpnService2` | `areaCode2`, `categoryCode2`, `ldongCode2`, `areaBasedList2`, `locationBasedList2`, `searchKeyword2`, `searchFestival2`, `searchStay2`, `detailCommon2`, `detailIntro2`, `detailInfo2`, `detailImage2`, `areaBasedSyncList2`, `lclsSystmCode2` | [다운로드](https://api.visitkorea.or.kr/upload/manual/guide/file/1737596480579.zip) |
+| `ger` | `GerService2` | `areaCode2`, `categoryCode2`, `ldongCode2`, `areaBasedList2`, `locationBasedList2`, `searchKeyword2`, `searchFestival2`, `searchStay2`, `detailCommon2`, `detailIntro2`, `detailInfo2`, `detailImage2`, `areaBasedSyncList2`, `lclsSystmCode2` | [다운로드](https://api.visitkorea.or.kr/upload/manual/guide/file/1737596457504.zip) |
+| `fre` | `FreService2` | `areaCode2`, `categoryCode2`, `ldongCode2`, `areaBasedList2`, `locationBasedList2`, `searchKeyword2`, `searchFestival2`, `searchStay2`, `detailCommon2`, `detailIntro2`, `detailInfo2`, `detailImage2`, `areaBasedSyncList2`, `lclsSystmCode2` | [다운로드](https://api.visitkorea.or.kr/upload/manual/guide/file/1737596408255.zip) |
+| `spn` | `SpnService2` | `areaCode2`, `categoryCode2`, `ldongCode2`, `areaBasedList2`, `locationBasedList2`, `searchKeyword2`, `searchFestival2`, `searchStay2`, `detailCommon2`, `detailIntro2`, `detailInfo2`, `detailImage2`, `areaBasedSyncList2`, `lclsSystmCode2` | [다운로드](https://api.visitkorea.or.kr/upload/manual/guide/file/1737596391866.zip) |
+| `rus` | `RusService2` | `areaCode2`, `categoryCode2`, `ldongCode2`, `areaBasedList2`, `locationBasedList2`, `searchKeyword2`, `searchFestival2`, `searchStay2`, `detailCommon2`, `detailIntro2`, `detailInfo2`, `detailImage2`, `areaBasedSyncList2`, `lclsSystmCode2` | [다운로드](https://api.visitkorea.or.kr/upload/manual/guide/file/1737596057411.zip) |
+| `with` | `KorWithService2` | `areaCode2`, `categoryCode2`, `areaBasedList2`, `locationBasedList2`, `searchKeyword2`, `detailCommon2`, `detailIntro2`, `detailInfo2`, `detailImage2`, `detailWithTour2`, `areaBasedSyncList2`, `ldongCode2`, `lclsSystmCode2` | [다운로드](https://api.visitkorea.or.kr/upload/manual/guide/file/1737596514908.zip) |
+| `green` | `GreenTourService1` | `areaCode1`, `areaBasedList1`, `areaBasedSyncList1` | [다운로드](https://api.visitkorea.or.kr/upload/manual/guide/file/1704160406003.zip) |
+| `photo_gallery` | `PhotoGalleryService1` | `galleryList1`, `gallerySearchList1`, `galleryDetailList1`, `gallerySyncDetailList1` | [다운로드](https://api.visitkorea.or.kr/upload/manual/guide/file/1704160396374.zip) |
+| `gocamping` | `GoCamping` | `basedList`, `locationBasedList`, `searchList`, `imageList`, `basedSyncList` | [다운로드](https://api.visitkorea.or.kr/upload/manual/guide/file/1704160387374.zip) |
+| `odii` | `Odii` | `themeBasedList`, `themeLocationBasedList`, `themeSearchList`, `storyBasedList`, `storyLocationBasedList`, `storySearchList`, `themeBasedSyncList`, `storyBasedSyncList` | [다운로드](https://api.visitkorea.or.kr/upload/manual/guide/file/1720672146251.zip) |
+| `datalab` | `DataLabService` | `metcoRegnVisitrDDList`, `locgoRegnVisitrDDList` | [다운로드](https://api.visitkorea.or.kr/upload/manual/guide/file/1704160370032.zip) |
+| `durunubi` | `Durunubi` | `routeList`, `courseList` | [다운로드](https://api.visitkorea.or.kr/upload/manual/guide/file/1704160359411.zip) |
+| `employment` | `tursmService` | `empmnInfoList`, `empmnInfoDetail`, `code`, `syncList` | [다운로드](https://api.visitkorea.or.kr/upload/manual/guide/file/1704160822554.zip) |
+| `tats_concentration` | `TatsCnctrRateService` | `tatsCnctrRateList`, `tatsCnctrRatedList` | [다운로드](https://api.visitkorea.or.kr/upload/manual/guide/file/1725501618773.zip) |
+| `local_hub` | `LocgoHubTarService1` | `areaBasedList1` | [다운로드](https://api.visitkorea.or.kr/upload/manual/guide/file/1725501897980.zip) |
+| `related_tour` | `TarRlteTarService1` | `areaBasedList1`, `searchKeyword1` | [다운로드](https://api.visitkorea.or.kr/upload/manual/guide/file/1725502022236.zip) |
+| `pet` | `KorPetTourService2` | `ldongCode2`, `areaBasedList2`, `locationBasedList2`, `searchKeyword2`, `detailCommon2`, `detailIntro2`, `detailInfo2`, `detailImage2`, `detailPetTour2`, `petTourSyncList2`, `lclsSystmCode2` | [다운로드](https://api.visitkorea.or.kr/upload/manual/guide/file/1737596366080.zip) |
+| `medical` | `MdclTursmService` | `ldongCode`, `areaBasedList`, `locationBasedList`, `searchKeyword`, `mdclTursmSyncList`, `detailCommon`, `detailIntro`, `detailMdclTursm` | [다운로드](https://api.visitkorea.or.kr/upload/manual/guide/file/1725080563660.zip) |
+| `wellness` | `WellnessTursmService` | `ldongCode`, `areaBasedList`, `locationBasedList`, `searchKeyword`, `wellnessTursmSyncList`, `detailCommon`, `detailIntro`, `detailInfo`, `detailImage` | [다운로드](https://api.visitkorea.or.kr/upload/manual/guide/file/1725080513010.zip) |
+| `photo_award` | `PhokoAwrdService` | `ldongCode`, `phokoAwrdList`, `phokoAwrdSyncList` | [다운로드](https://api.visitkorea.or.kr/upload/manual/guide/file/1725092509540.zip) |
+| `area_diversity` | `AreaTarDivService` | `areaTouDivList`, `areaExpDivList`, `areaIntlDivList` | [다운로드](https://api.visitkorea.or.kr/upload/manual/guide/file/manual_areaTarDivService.zip) |
+| `area_demand_strength` | `AreaTarDemDsService` | `areaTarSjrnDsList`, `areaTarExpDsList` | [다운로드](https://api.visitkorea.or.kr/upload/manual/guide/file/manual_areaTarDemDsService.zip) |
+| `area_resource_demand` | `AreaTarResDemService` | `areaTarSvcDemList`, `areaCulResDemList` | [다운로드](https://api.visitkorea.or.kr/upload/manual/guide/file/manual_areaTarResDemService.zip) |
 
 ## Notes
 

@@ -5,7 +5,6 @@ import asyncio
 import pytest
 
 from visitkorea import (
-    AsyncTourApiHubClient,
     DataLabVisitorItem,
     DurunubiCourseItem,
     GoCampingItem,
@@ -17,7 +16,7 @@ from visitkorea.exceptions import TourApiRequestError
 from .conftest import FakeAsyncSession, FakeResponse, FakeSession, tour_payload
 
 
-def test_typed_service_view_parses_known_services():
+async def test_typed_service_view_parses_known_services():
     session = FakeSession(
         [
             FakeResponse(
@@ -39,9 +38,9 @@ def test_typed_service_view_parses_known_services():
     )
     hub = TourApiHubClient("KEY", session=session)
 
-    camping = hub.gocamping.typed.based_list(facltNm="숲")
-    visitors = hub.datalab.typed.call("metcoRegnVisitrDDList", baseYm="202605")
-    medical = hub.medical.typed.area_based_list()
+    camping = await hub.gocamping.typed.based_list(facltNm="숲")
+    visitors = await hub.datalab.typed.call("metcoRegnVisitrDDList", baseYm="202605")
+    medical = await hub.medical.typed.area_based_list()
 
     item = camping.items[0]
     assert isinstance(item, GoCampingItem)
@@ -58,7 +57,7 @@ def test_typed_service_view_parses_known_services():
     assert medical.items[0].title == "의료기관"
 
 
-def test_typed_service_view_iter_pages_and_unregistered_service():
+async def test_typed_service_view_iter_pages_and_unregistered_service():
     session = FakeSession(
         [
             FakeResponse(
@@ -84,7 +83,7 @@ def test_typed_service_view_iter_pages_and_unregistered_service():
     )
     hub = TourApiHubClient("KEY", session=session)
 
-    pages = list(hub.durunubi.typed.iter_pages("courseList", num_of_rows=2))
+    pages = [item async for item in hub.durunubi.typed.iter_pages("courseList", num_of_rows=2)]
 
     names = [item.name for page in pages for item in page.items]
     assert names == ["둘레길A", "둘레길B", "둘레길C"]
@@ -95,11 +94,11 @@ def test_typed_service_view_iter_pages_and_unregistered_service():
         _ = hub.kor.typed
 
 
-def test_typed_service_view_generic_call_stays_raw():
+async def test_typed_service_view_generic_call_stays_raw():
     session = FakeSession([FakeResponse(tour_payload({"contentId": "1", "facltNm": "캠핑"}))])
     hub = TourApiHubClient("KEY", session=session)
 
-    page = hub.gocamping.based_list(facltNm="숲")
+    page = await hub.gocamping.based_list(facltNm="숲")
 
     assert not isinstance(page.items[0], GoCampingItem)
     assert page.items[0]["facltNm"] == "캠핑"
@@ -120,7 +119,7 @@ def test_async_typed_service_view():
                 ),
             ]
         )
-        hub = AsyncTourApiHubClient("KEY", session=session)
+        hub = TourApiHubClient("KEY", session=session)
 
         page = await hub.gocamping.typed.based_list(facltNm="숲")
         pages = [p async for p in hub.gocamping.typed.iter_pages("basedList", num_of_rows=1)]

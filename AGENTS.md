@@ -4,34 +4,33 @@
 
 `visitkorea`는 한국관광공사(KTO) TourAPI(data.go.kr 공개 API)를 감싸는 **비공식 Python
 클라이언트 라이브러리**다. 자주 쓰는 국문 관광정보서비스(`KorService2`)는 typed client
-(`KrTourApiClient`/`AsyncKrTourApiClient`)로 제공하고, `api.visitkorea.or.kr` 활용신청
-목록의 27개 서비스 전체는 카탈로그 기반 generic client(`TourApiHubClient`/
-`AsyncTourApiHubClient`)로 제공한다.
+(`KrTourApiClient`)로 제공하고, `api.visitkorea.or.kr` 활용신청
+목록의 27개 서비스 전체는 카탈로그 기반 generic client(`TourApiHubClient`)로 제공한다.
 
-## Think Before Coding
+## 수정 전 확인
 
 - TourAPI 필드가 매뉴얼과 실제 응답에서 다르면 추측으로 모델링하지 말고 `raw` 보존으로
   갈지 먼저 확인할 것
 - 상위 코드 없이 하위 코드(`sigunguCode`, `cat2`/`cat3`, `lDongSignguCd`,
   `lclsSystm2`/`lclsSystm3`)만 요청하는 변경은 계층적 의존성을 먼저 확인할 것
-- 동기 클라이언트만 고치는 변경은 비동기 쪽 반영 여부를 먼저 표면화할 것(그 반대도 동일)
+- 네트워크 I/O는 비동기 전용으로 유지하고 typed/Hub의 도메인 계약을 함께 검증할 것
 - 요청이 모호할 때는 조용히 해석을 정하지 말고 드러낼 것
 
-## Simplicity First
+## 구현 범위
 
 - 요청을 해결하는 최소한의 typed method/model만 추가할 것
 - 안정적으로 확인되지 않은 TourAPI 필드를 서둘러 모델화하지 말고 `raw` 보존을 우선할 것
 - 단순 전달용 래퍼/어댑터/게이트웨이를 새로 만들지 말 것(`docs/decisions.md` D-002)
 - 구체적 필요 없이 설정 가능성이나 옵션을 늘리지 말 것
 
-## Surgical Changes
+## 변경 범위 관리
 
 - 요청을 처리하는 데 필요한 `client.py`/`hub.py`/`models.py` 등 해당 모듈만 변경할 것
 - 관련 없는 서비스 정의, 코드 스타일, 포맷을 함께 건드리지 말 것
 - 기존 typed method 이름과 패턴을 따르고, 더 넓은 리팩터링이 필요하면 별도로 언급할 것
 - 관련 없는 문제를 발견하면 패치에 섞지 말고 따로 보고할 것
 
-## Goal-Driven Execution
+## 결과 검증
 
 - 버그 수정은 실제 TourAPI 응답이나 재현 fixture 없이 바로 신뢰하지 말 것
 - offline 테스트만으로 부족하면 무엇이 미검증인지 밝힐 것(live test는
@@ -39,7 +38,7 @@
 - 리팩터링은 typed client와 Hub client 양쪽의 동작 보존을 전후로 확인할 것
 - 완전한 검증이 불가능하면 무엇이 아직 미검증인지 밝힐 것
 
-## Practical Bias
+## 작업 판단
 
 - 새 endpoint/서비스 추가처럼 비단순 작업은 성급함보다 신중함을 우선할 것
 - 변경 범위는 요청 범위와 리뷰 가능한 크기로 유지할 것
@@ -70,7 +69,7 @@
 | Python import 경로 | `from visitkorea import ...` |
 | CLI 명령 | `visitkorea` |
 | 환경변수 prefix | `DATA_GO_KR_*`, `VISITKOREA_API_*` |
-| 기본 base URL | `http://apis.data.go.kr/B551011` |
+| 기본 base URL | `https://apis.data.go.kr/B551011` |
 | 기본 서비스 | `KorService2` |
 | 디버그 UI | `examples/streamlit_debug_ui.py` (Streamlit) |
 
@@ -90,8 +89,8 @@ PC 개발은 Windows 호스트에서 직접 진행한다.
 
 ```text
 src/visitkorea/
-├── client.py            # KrTourApiClient / AsyncKrTourApiClient — KorService2 typed wrapper
-├── hub.py               # TourApiHubClient / AsyncTourApiHubClient — 27개 서비스 generic client
+├── client.py            # KrTourApiClient — KorService2 typed wrapper
+├── hub.py               # TourApiHubClient — 27개 서비스 generic client
 ├── services.py          # SERVICE_DEFINITIONS 카탈로그 (api.visitkorea.or.kr 매뉴얼 기반)
 ├── operation_schema.py  # 오퍼레이션별 파라미터 스키마 + get_api_catalog_entry() (디버그 UI용)
 ├── debug.py             # jsonable/redact_sensitive/debug_error/save_fixture (디버그 UI·fixture 공용)
@@ -109,9 +108,9 @@ src/visitkorea/
 └── _provenance.py       # TourApiCallContext 생성
 ```
 
-## 절대 하지 말 것 (DO NOT)
+## 절대 하지 말 것 (금지 사항)
 
-1. **동기/비동기 코드 불일치 금지** — `_list_params()`, `_page_params()` 등 공유 로직은 sync/async 클래스에서 동일하게 유지한다. 한쪽을 수정하면 반드시 다른 쪽도 갱신한다(`docs/decisions.md` D-005).
+1. **비동기 전용 유지** — 공개 네트워크 메서드는 `await`, 페이지 반복은 `async for`, 종료는 `aclose()`와 `async with`를 사용한다(D-006). 모든 송신은 공통 버킷의 토큰을 획득한다.
 2. **서비스 키 평문 노출·커밋 금지** — 예외 메시지, 로그, response, git 커밋 어디에도 서비스 키를 포함하지 않는다. `_redact_secret()`을 거치고, `.env`는 gitignore 대상이다.
 3. **상위 코드 없이 하위 코드 전달 금지** — `areaCode` 없는 `sigunguCode`, `cat1` 없는 `cat2`/`cat3`, `lDongRegnCd` 없는 `lDongSignguCd`, `lclsSystm1`/`lclsSystm2` 없는 `lclsSystm2`/`lclsSystm3` 전달을 금지한다(계층적 의존성).
 4. **TourAPI timestamp를 UTC로 해석 금지** — 항상 KST(Asia/Seoul)이다.
@@ -122,7 +121,7 @@ src/visitkorea/
 
 | 작업 | 시작 파일 |
 |------|-----------|
-| 새 typed endpoint 추가 | `client.py` (sync + async 양쪽) → `models.py` → `test_client.py` + `test_async.py` |
+| 새 typed endpoint 추가 | `client.py` (비동기 typed/Hub 계약 함께 확인) → `models.py` → `test_client.py` + `test_async.py` |
 | 새 서비스 정의 추가 | `services.py` SERVICE_DEFINITIONS → `test_hub.py` 개수 업데이트 |
 | 새 enum/constant 추가 | `enums.py` → `__init__.py` export → `test_enums.py` |
 | 새 예외 타입 추가 | `exceptions.py` → `_http.py` 매핑 → `test_http.py` |
@@ -147,8 +146,8 @@ src/visitkorea/
 ## 테스트 정책
 
 - 기본 테스트는 **오프라인(offline)**이어야 한다 (실제 API 호출 금지).
-- HTTP 동작에는 `FakeSession`/`FakeAsyncSession` 또는 `httpx.MockTransport`를 사용한다.
-- 라이브 테스트(Live test)에는 `@pytest.mark.live`와 `DATA_GO_KR_SERVICE_KEY`가 필요하다.
+- HTTP 동작에는 비동기 `FakeSession` 또는 `httpx.MockTransport`를 사용한다.
+- 라이브 테스트(Live test)에는 `@pytest.mark.live`와 `VISITKOREA_RUN_LIVE=1`과 `DATA_GO_KR_SERVICE_KEY`가 필요하다.
 - 불안정한 실제 관광 데이터 값을 assert하지 말고, 형태(shape)와 타입(type)만 assert한다.
 - `TourApiHubClient` 테스트는 catalog-driven으로 유지하고 기본 테스트에서 실제 27개 서비스를 호출하지 않는다.
 - 좌표(Coordinate) 테스트는 `PlaceCoordinate` WGS84 `lon`/`lat`와 TourAPI `mapX`/`mapY` 차이를 명시한다.

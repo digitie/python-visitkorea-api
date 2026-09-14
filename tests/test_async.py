@@ -7,13 +7,12 @@ import pytest
 from visitkorea import (
     AreaCode,
     Arrange,
-    AsyncKrTourApiClient,
-    AsyncTourApiHubClient,
     ContentType,
     KrTourApiClient,
     RelatedTourItem,
+    TourApiHubClient,
 )
-from visitkorea._http import DEFAULT_USER_AGENT, build_async_session
+from visitkorea._http import DEFAULT_USER_AGENT, build_session
 from visitkorea.exceptions import TourApiRequestError
 
 from .conftest import FakeAsyncSession, FakeResponse, tour_payload
@@ -21,9 +20,9 @@ from .test_client import sample_tour_item
 from .test_hub import sample_related_tour_item
 
 
-def test_build_async_session_uses_httpx_user_agent():
+def test_build_session_uses_httpx_user_agent():
     async def run() -> None:
-        client = build_async_session(retries=0)
+        client = build_session(retries=0)
         try:
             assert client.headers["User-Agent"] == DEFAULT_USER_AGENT
         finally:
@@ -90,7 +89,7 @@ def test_async_hub_generic_and_related_tour_helpers():
                 FakeResponse(tour_payload(sample_related_tour_item())),
             ]
         )
-        async with AsyncTourApiHubClient("KEY", session=session) as hub:
+        async with TourApiHubClient("KEY", session=session) as hub:
             page = await hub.call("gocamping", "based_list", facltNm="숲")
             related = await hub.related_tour.area_based_list(
                 base_ym="202504",
@@ -110,9 +109,9 @@ def test_async_hub_generic_and_related_tour_helpers():
 
 
 def test_sync_client_aio_factory_returns_async_client():
-    client = KrTourApiClient.aio("KEY", session=FakeAsyncSession([]))
+    client = KrTourApiClient("KEY", session=FakeAsyncSession([]))
 
-    assert isinstance(client, AsyncKrTourApiClient)
+    assert isinstance(client, KrTourApiClient)
 
 
 def test_async_typed_client_endpoint_parity():
@@ -128,7 +127,9 @@ def test_async_typed_client_endpoint_parity():
                 FakeResponse(tour_payload(row | {"homepage": "<a>홈</a>", "overview": "설명"})),
                 FakeResponse(tour_payload({"contentid": "1", "contenttypeid": "12"})),
                 FakeResponse(tour_payload({"contentid": "1", "contenttypeid": "25"})),
-                FakeResponse(tour_payload({"contentid": "1", "originimgurl": "https://e.test/a.jpg"})),
+                FakeResponse(
+                    tour_payload({"contentid": "1", "originimgurl": "https://e.test/a.jpg"})
+                ),
                 FakeResponse(tour_payload(row | {"showFlag": "1"})),
                 FakeResponse(tour_payload({"code": "A", "name": "분류"})),
                 FakeResponse(tour_payload({"lDongRegnCd": "11", "lDongRegnNm": "서울특별시"})),
@@ -136,7 +137,7 @@ def test_async_typed_client_endpoint_parity():
                 FakeResponse(tour_payload({"custom": "value"})),
             ]
         )
-        client = AsyncKrTourApiClient("KEY", session=session)
+        client = KrTourApiClient("KEY", session=session)
 
         area = await client.area_based_list(area_code=AreaCode.SEOUL, num_of_rows=5)
         location = await client.location_based_list(
@@ -223,7 +224,7 @@ def test_async_hub_catalog_dynamic_iterators_and_errors():
                 FakeResponse(tour_payload(second, page_no=2, num_of_rows=1, total_count=2)),
             ]
         )
-        hub = AsyncTourApiHubClient("KEY", session=session)
+        hub = TourApiHubClient("KEY", session=session)
 
         assert hub.services
         assert any(row["service_id"] == "kor" for row in hub.catalog())

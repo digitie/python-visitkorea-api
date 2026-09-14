@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest
 
-from visitkorea.client import AsyncKrTourApiClient, KrTourApiClient
+from visitkorea.client import KrTourApiClient
 
 
 class FakeResponse:
@@ -34,7 +34,7 @@ class FakeSession:
         self.responses = responses
         self.calls: list[dict[str, Any]] = []
 
-    def get(self, url: str, *, params: Mapping[str, Any], timeout: float) -> FakeResponse:
+    async def get(self, url: str, *, params: Mapping[str, Any], timeout: float) -> FakeResponse:
         self.calls.append({"url": url, "params": dict(params), "timeout": timeout})
         if not self.responses:
             raise AssertionError("no fake response left")
@@ -102,9 +102,9 @@ def fake_async_client_factory() -> Any:
     def factory(
         *responses: FakeResponse,
         **kwargs: Any,
-    ) -> tuple[AsyncKrTourApiClient, FakeAsyncSession]:
+    ) -> tuple[KrTourApiClient, FakeAsyncSession]:
         session = FakeAsyncSession(list(responses))
-        client = AsyncKrTourApiClient("TEST_KEY", session=session, **kwargs)
+        client = KrTourApiClient("TEST_KEY", session=session, **kwargs)
         return client, session
 
     return factory

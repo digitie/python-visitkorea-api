@@ -142,9 +142,10 @@ def test_get_api_catalog_entry_exposes_kind_typed_parameters():
 
     assert entry["service_id"] == "gocamping"
     assert entry["operation"] == "basedList"
-    assert "content_type_id" in entry["optional_params"] or "content_type_id" in entry[
-        "required_params"
-    ]
+    assert (
+        "content_type_id" in entry["optional_params"]
+        or "content_type_id" in entry["required_params"]
+    )
     kinds = {parameter["name"]: parameter["kind"] for parameter in entry["parameters"]}
     assert kinds["content_type_id"] == "enum"
     assert kinds["arrange"] == "enum"
@@ -159,11 +160,11 @@ def test_get_api_catalog_entry_covers_every_catalog_operation_without_raising():
         assert isinstance(entry["parameters"], tuple)
 
 
-def test_debug_fetch_success_returns_full_debug_run():
+async def test_debug_fetch_success_returns_full_debug_run():
     session = FakeSession([FakeResponse(tour_payload({"contentid": "1", "title": "캠핑"}))])
     hub = TourApiHubClient("KEY", session=session)
 
-    run = hub.debug_fetch(
+    run = await hub.debug_fetch(
         "gocamping",
         "basedList",
         params={"facility_name": "숲"},
@@ -183,10 +184,10 @@ def test_debug_fetch_success_returns_full_debug_run():
     assert any("items=1" in line for line in run.trace)
 
 
-def test_debug_fetch_unknown_operation_returns_structured_error_with_catalog():
+async def test_debug_fetch_unknown_operation_returns_structured_error_with_catalog():
     hub = TourApiHubClient("KEY", session=FakeSession([]))
 
-    run = hub.debug_fetch("gocamping", "notARealOperation")
+    run = await hub.debug_fetch("gocamping", "notARealOperation")
 
     assert run.error is not None
     assert run.error["type"] == "TourApiRequestError"
@@ -194,38 +195,38 @@ def test_debug_fetch_unknown_operation_returns_structured_error_with_catalog():
     assert run.parsed is None
 
 
-def test_debug_fetch_unknown_service_has_no_catalog_and_no_crash():
+async def test_debug_fetch_unknown_service_has_no_catalog_and_no_crash():
     hub = TourApiHubClient("KEY", session=FakeSession([]))
 
-    run = hub.debug_fetch("not_a_real_service", "basedList")
+    run = await hub.debug_fetch("not_a_real_service", "basedList")
 
     assert run.error is not None
     assert run.catalog is None
 
 
-def test_debug_fetch_rejects_non_json_response_type():
+async def test_debug_fetch_rejects_non_json_response_type():
     hub = TourApiHubClient("KEY", session=FakeSession([]))
 
     with pytest.raises(TourApiRequestError):
-        hub.debug_fetch("gocamping", "basedList", response_type="xml")
+        (await hub.debug_fetch("gocamping", "basedList", response_type="xml"))
 
 
-def test_debug_fetch_use_typed_parses_registered_service_model():
+async def test_debug_fetch_use_typed_parses_registered_service_model():
     session = FakeSession(
         [FakeResponse(tour_payload({"contentId": "1", "facltNm": "숲속 캠핑장"}))]
     )
     hub = TourApiHubClient("KEY", session=session)
 
-    run = hub.debug_fetch("gocamping", "basedList", use_typed=True)
+    run = await hub.debug_fetch("gocamping", "basedList", use_typed=True)
 
     assert run.error is None
     assert run.processed[0].facility_name == "숲속 캠핑장"
 
 
-def test_debug_fetch_use_typed_without_registered_parser_is_a_structured_error():
+async def test_debug_fetch_use_typed_without_registered_parser_is_a_structured_error():
     hub = TourApiHubClient("KEY", session=FakeSession([]))
 
-    run = hub.debug_fetch("kor", "areaBasedList2", use_typed=True)
+    run = await hub.debug_fetch("kor", "areaBasedList2", use_typed=True)
 
     assert run.error is not None
     assert run.error["type"] == "TourApiRequestError"

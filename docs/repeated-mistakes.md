@@ -1,4 +1,4 @@
-# Repeated Mistakes To Avoid
+# 반복 실수 To Avoid
 
 이 문서는 `visitkorea`를 만들면서 반복하기 쉬운 실수를 고정해 두는 로그입니다. 같은 문제가 다시 나오면 반드시 테스트와 함께 갱신합니다.
 
@@ -20,7 +20,7 @@
 
 **원인:** 라이브러리 public API에 `httpx.AsyncClient` 기반 client가 없는데도, 부족한 endpoint/helper를 downstream facade로 우회한다.
 
-**규칙:** 동기 client와 같은 메서드 이름을 제공하는 `AsyncKrTourApiClient`와 `AsyncTourApiHubClient`를 직접 사용한다. 응답 모델, 예외 hierarchy, `Page` pagination 규칙은 동기/비동기에서 같아야 하며, 새 async 동작은 이 패키지의 public API로 안정화한다.
+**규칙:** 비동기 전용 `KrTourApiClient`와 `TourApiHubClient`를 직접 사용한다. 응답 모델·예외·페이지 규칙은 유지하며, 동기 네트워크 경로나 별도 Async 접두사 클래스를 추가하지 않는다(D-006).
 
 **가드레일:** `test_async_typed_client_sends_request_and_parses_page`, `test_async_typed_client_iter_pages`, `test_async_hub_generic_and_related_tour_helpers`.
 
@@ -142,7 +142,7 @@
 
 **규칙:** 인증키는 `.env.local` 또는 현재 shell 환경변수에만 둔다. `.env*`는 gitignore에 유지하고, 커밋 전 `git status --ignored .env.local`로 추적되지 않는지 확인한다.
 
-**가드레일:** `scripts/run_live_tests.ps1`는 `.env.local`을 읽기만 하며, live test는 `DATA_GO_KR_SERVICE_KEY`가 없으면 skip한다.
+**가드레일:** `scripts/run_live_tests.ps1`는 `.env.local`을 읽기만 하며, live test는 `VISITKOREA_RUN_LIVE=1` 또는 `DATA_GO_KR_SERVICE_KEY`가 없으면 skip한다.
 
 ## 실 서버 응답 코드를 문서 예시 `00`만 정상으로 보기
 
@@ -289,3 +289,11 @@
 **규칙:** 이 저장소의 Python 내부 문서(docstring, 필요한 코드 주석, 예외 설명용 내부 문자열)는 특별한 외부 API 호환 이유가 없으면 한국어로 작성한다. 코드 식별자와 TourAPI 원문 필드명은 그대로 둔다.
 
 **가드레일:** Python 파일을 수정할 때 새로 추가한 docstring/주석이 한국어인지 확인하고, 영어가 필요한 경우에는 공식 명칭, 프로토콜 값, 외부 라이브러리 용어처럼 이유가 있는지 점검한다.
+
+## 비동기 전환 후 송신·수명·인증값 경계를 놓치기
+
+**실수:** HTTPX 내부 재시도/리디렉션을 계측하지 않거나, 실패한 캐시 요청의 잠금을 강참조로 계속 보관한다. 문자열 마스킹을 모델 파싱 전에 적용하면 숫자와 시간이 훼손된다. 요청 키 이름만 로그에서 지우면 리디렉션 경로에 반사된 인증값이 남는다.
+
+**규칙:** 모든 송신 직전에 동일 버킷을 기다린다. 캐시 잠금은 활성 요청/대기자만 소유한다. 모델 파싱 후 Page 전체와 오류/DebugRun을 실제 params·kwargs의 인증값으로 마스킹한다. 로그에는 요청별 ContextVar를 사용한다. 독립 서비스 클라이언트에도 aclose와 async context를 제공한다.
+
+**가드레일:** 토큰/송신 수, 반복 취소, 캐시 실패 누수, 숫자 키와 정상 숫자 응답, 리디렉션 로그, kwargs 인증값 반사와 standalone 세션 종료를 독립 모의 HTTP로 검증한다.
